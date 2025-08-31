@@ -1,0 +1,61 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Memaksa scrollbar untuk selalu terlihat agar tidak ada layout shift */
+html {
+    overflow-y: scroll;
+}
+
+/* =================================================================== */
+/* === KODE UNTUK MENGATASI LATAR BELAKANG PUTIH PADA AUTOFILL === */
+/* =================================================================== */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+    -webkit-text-fill-color: #d1d5db !important; /* text-gray-300 */
+    box-shadow: 0 0 0px 1000px #111827 inset !important; /* bg-gray-900 */
+    transition: background-color 5000s ease-in-out 0s;
+}
+
+/* =================================================================== */
+/* === KODE UNTUK MEMBUAT TOM SELECT MENJADI DARK MODE === */
+/* =================================================================== */
+
+/* Mengubah warna dasar dari container input */
+.dark .ts-control {
+    background-color: #111827; /* bg-gray-900 */
+    border-color: #374151; /* border-gray-700 */
+    color: #d1d5db; /* text-gray-300 */
+}
+
+/* Mengubah warna border saat input di-klik/fokus */
+.dark .ts-control.focus {
+    border-color: #6366f1; /* border-indigo-500 */
+    box-shadow: none;
+}
+
+/* Mengubah warna teks placeholder & input */
+.dark .ts-control input::placeholder,
+.dark .ts-control > .item {
+    color: #d1d5db; /* text-gray-300 */
+}
+
+/* Mengubah warna "tag" atau item yang sudah dipilih */
+.dark .ts-control > .item {
+    background-color: #374151; /* bg-gray-700 */
+}
+
+/* Mengubah warna background panel dropdown yang muncul */
+.dark .ts-dropdown {
+    background-color: #1f2937; /* bg-gray-800 */
+    border-color: #374151; /* border-gray-700 */
+    color: #d1d5db; /* text-gray-300 */
+}
+
+/* Mengubah warna opsi saat di-hover atau aktif */
+.dark .ts-dropdown .active {
+    background-color: #374151; /* bg-gray-700 */
+    color: #fff;
+}
