@@ -12,6 +12,7 @@ class VlanController extends Controller
         $vlans = Vlan::latest()->paginate(10);
         return view('vlans.index', compact('vlans'));
     }
+    
 
     public function create()
     {
