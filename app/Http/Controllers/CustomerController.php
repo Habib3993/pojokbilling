@@ -231,6 +231,7 @@ class CustomerController extends Controller
     public function inactive(Request $request)
     {
         $search = $request->input('search');
+        $sales = $request->input('sales');
         $today = \Carbon\Carbon::now()->toDateString();
         $user = auth()->user();
         
@@ -246,6 +247,7 @@ class CustomerController extends Controller
                 $q->where('active_until', '<', $today)->orWhereNull('active_until');
             })
             ->when($search, fn($q, $s) => $q->where('name', 'like', "%{$s}%"))
+            ->when($sales, fn($q, $s) => $q->where('sales', 'like', "%{$s}%"))
             ->get();
             
         return view('customers.status_list', [

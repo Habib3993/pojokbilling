@@ -33,12 +33,14 @@ Route::get('/', function () {
     return view('welcome');
 });
 
-Route::get('/dashboard', function () {
-    return view('dashboard');
-})->middleware(['auth', 'verified'])->name('dashboard');
-
 // Semua rute yang butuh login, sekarang ada di dalam satu grup ini.
 Route::middleware('auth')->group(function () {
+
+    // --- Rute dasboard ---
+    Route::get('/dashboard', function () {
+        return view('dashboard');
+    })->middleware(['verified'])->name('dashboard');
+    Route::get('dashboard/stats', [DashboardController::class, 'getStats'])->name('dashboard.stats');
     
     // --- Rute Profil Pengguna ---
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
@@ -118,7 +120,6 @@ Route::middleware('auth')->group(function () {
     Route::get('/backup/download/{fileName}', [BackupController::class, 'download'])->name('backup.download');
     Route::delete('/backup/{fileName}', [BackupController::class, 'destroy'])->name('backup.destroy');
     Route::get('/invoices/{payment}/download', [RechargeController::class, 'downloadInvoice'])->name('invoices.download');
-    Route::get('/api/dashboard-stats', [DashboardController::class, 'getStats']);
     Route::get('/ip-pools/sync/{routerId}', [IpPoolController::class, 'sync'])->name('ip-pools.sync');
     Route::get('/routers/{router}/status', [RouterController::class, 'getStatus'])->name('routers.status');
     Route::get('/packages/sync/{routerId}', [PackageController::class, 'sync'])->name('packages.sync');

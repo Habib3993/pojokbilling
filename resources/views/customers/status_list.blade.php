@@ -13,6 +13,10 @@
                     <div class="flex justify-between items-center mb-4">
                         <form action="{{ url()->current() }}" method="GET" class="w-1/3">
                             <x-text-input type="text" name="search" placeholder="Cari nama pengguna..." class="w-full" value="{{ request('search') }}" />
+                            <x-text-input type="text" name="sales" placeholder="Cari berdasarkan sales..." class="w-full" value="{{ request('sales') }}" />
+                            <button type="submit" class="inline-flex items-center px-4 py-2 bg-gray-500 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition ease-in-out duration-150">
+                                Filter
+                            </button>
                         </form>
                         @can('edit customers')
                         <form action="{{ route('customers.sync') }}" method="POST">
@@ -41,22 +45,22 @@
                         <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                             <thead class="bg-gray-50 dark:bg-gray-700">
                                 <tr>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nama Pengguna</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Paket</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Dibuat</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Kedaluwarsa</th>
-                                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Aksi</th>
+                                    <th class="px-6 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Nama Pengguna</th>
+                                    <th class="px-6 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Paket</th>
+                                    <th class="px-6 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Dibuat</th>
+                                    <th class="px-6 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Kedaluwarsa</th>
+                                    <th class="px-6 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Aksi</th>
                                 </tr>
                             </thead>
                             <tbody class="bg-white divide-y divide-gray-200 dark:bg-gray-800 dark:divide-gray-700">
                                 @forelse ($customers as $customer)
                                     <tr>
-                                        <td class="px-6 py-4 whitespace-nowrap">{{ $customer->name }}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap">{{ $customer->package->name ?? 'N/A' }}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap">{{ $customer->latestPayment ? \Carbon\Carbon::parse($customer->latestPayment->payment_date)->format('d M Y') : 'Belum ada' }}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap">{{ $customer->active_until ? \Carbon\Carbon::parse($customer->active_until)->format('d M Y') : 'N/A' }}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                        <td class="px-6 py-2 whitespace-nowrap text-xs">{{ $customer->name }}</td>
+                                        <td class="px-6 py-2 whitespace-nowrap text-xs">{{ $customer->package->name ?? 'N/A' }}</td>
+                                        <td class="px-6 py-2 whitespace-nowrap text-xs">{{ $customer->latestPayment ? \Carbon\Carbon::parse($customer->latestPayment->payment_date)->format('d M Y') : 'Belum ada' }}</td>
+                                        <td class="px-6 py-2 whitespace-nowrap text-xs">{{ $customer->active_until ? \Carbon\Carbon::parse($customer->active_until)->format('d M Y') : 'N/A' }}</td>
+                                        <td class="px-6 py-2 whitespace-nowrap text-right text-sm font-medium">
+                                        <td class="px-6 py-2 whitespace-nowrap text-right text-sm font-medium">
                                             {{-- Tombol Kirim Pesan WhatsApp --}}
                                             @can('send whatsapp messages')
                                             <a href="{{ route('whatsapp.private.create', ['customer_id' => $customer->id]) }}" class="inline-flex items-center text-gray-500 hover:text-gray-700" title="Kirim Pesan">
@@ -64,7 +68,7 @@
                                             </a>
 
                                             {{-- Tombol "Bayar" yang BARU dan DINAMIS --}}
-                                            <a href="{{ route('recharge.create', ['customer_id' => $customer->id, 'source' => $status . '_list']) }}"
+                                            <a href="{{ route('recharge.create', ['customer_id' => $customer->id, 'source' => $status]) }}"
                                             class="inline-flex items-center ml-4 px-3 py-1 bg-indigo-600 text-white text-xs font-semibold rounded-md hover:bg-indigo-700">
                                                 Bayar
                                             </a>

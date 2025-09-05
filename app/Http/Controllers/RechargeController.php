@@ -27,11 +27,16 @@ class RechargeController extends Controller
     /**
      * Menampilkan form untuk isi ulang.
      */
-    public function create()
+    public function create(Request $request)
     {
         $customers = Customer::orderBy('name')->get();
         $packages = Package::orderBy('name')->get();
-        return view('recharge.create', compact('customers', 'packages'));
+        // Ambil customer yang dipilih dari URL, jika ada
+        $selectedCustomer = null;
+        if ($request->has('customer_id')) {
+            $selectedCustomer = Customer::with('package')->find($request->customer_id);
+        }
+        return view('recharge.create', compact('customers', 'packages', 'selectedCustomer'));
     }
 
     /**

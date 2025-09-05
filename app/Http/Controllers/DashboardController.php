@@ -3,13 +3,14 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use App\Models\Customer;    // <-- MENGGUNAKAN MODEL YANG BENAR
+use App\Models\Payment;     // <-- MENGGUNAKAN MODEL YANG BENAR
 use App\Models\User; // Asumsi: Model untuk data pelanggan
 use App\Models\Transaction; // Asumsi: Model untuk data transaksi/pendapatan
 use App\Models\Expense; // Asumsi: Model untuk data pengeluaran
-// Ganti nama model di atas jika berbeda dengan proyek Anda.
-
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class DashboardController extends Controller
 {
@@ -18,110 +19,103 @@ class DashboardController extends Controller
      */
     public function getStats(Request $request)
     {
-        $today = Carbon::now();
-        $startOfMonth = $today->copy()->startOfMonth();
-        $startOfLastMonth = $today->copy()->subMonth()->startOfMonth();
-        $endOfLastMonth = $startOfLastMonth->copy()->endOfMonth();
+        $user = auth()->user();
+        
+        // Jika tidak ada user yang login, kirim respons error yang jelas
+        if (!$user) {
+            return response()->json(['error' => 'Unauthenticated'], 401);
+        }
 
         // =================================================================
-        // 1: USER (ACTIVE USERS)
-        // Logika: Jumlah total semua pelanggan.
+        // 1: HANYA FOKUS PADA TOTAL PELANGGAN
         // =================================================================
-        $activeUsersCount = User::count();
-        $targetPelanggan = 500; // Target bisa diubah atau diambil dari database
-        $activeUsersPercentage = ($targetPelanggan > 0) ? round(($activeUsersCount / $targetPelanggan) * 100) : 0;
+        $customerQuery = \App\Models\Customer::query();
+
+        // Logika untuk membedakan superadmin dan admin biasa
+        if (!$user->hasRole('superadmin')) {
+            $customerQuery->where('location_id', $user->location_id);
+        }
+
+        $totalCustomers = $customerQuery->count();
+        $targetPelanggan = 1000;
+        $percentageToTarget = ($targetPelanggan > 0) ? round(($totalCustomers / $targetPelanggan) * 100) : 0;
+
         $activeUsers = [
-            'count' => number_format($activeUsersCount),
-            'percentage' => 0, // Tidak ada perbandingan periode
-            'series' => [$activeUsersPercentage]
+            'count' => number_format($totalCustomers),
+            'percentage' => 0, // Placeholder
+            'series' => [$percentageToTarget]
         ];
 
         // =================================================================
-        // 2: PENDAPATAN (REVENUE)
-        // Logika: Gross income pada bulan berjalan.
+        // 2: REVENUE (Revisi Logika untuk Chart Bulanan)
         // =================================================================
-        $revenueThisMonth = Transaction::whereBetween('created_at', [$startOfMonth, $today])->sum('amount');
-        $revenueLastMonth = Transaction::whereBetween('created_at', [$startOfLastMonth, $endOfLastMonth])->sum('amount');
-        $revenuePercentageChange = ($revenueLastMonth > 0) ? round((($revenueThisMonth - $revenueLastMonth) / $revenueLastMonth) * 100) : 0;
+        
+        // Query dasar yang akan digunakan berulang kali
+        $baseRevenueQuery = Transaction::query();
+        if (!$user->hasRole('superadmin')) {
+            $baseRevenueQuery->where('location_id', $user->location_id);
+        }
 
-        $revenueSeries = Transaction::select(DB::raw('DATE(created_at) as date'), DB::raw('SUM(amount) as total'))
-            ->where('created_at', '>=', $startOfMonth)
-            ->groupBy('date')->orderBy('date', 'ASC')->pluck('total')->toArray();
+        $revenueLabels = [];
+        $revenueSeries = [];
+
+        // Loop untuk 3 bulan terakhir (termasuk bulan ini) untuk mendapatkan data per bulan
+        for ($i = 2; $i >= 0; $i--) {
+            $date = Carbon::now()->subMonths($i);
+            $monthName = $date->format('M Y'); // Format: Jul 2025
+
+            // Kloning query agar tidak menimpa
+            $queryForMonth = clone $baseRevenueQuery;
+
+            $monthlyRevenue = $queryForMonth
+                ->whereYear('date', $date->year)
+                ->whereMonth('date', $date->month)
+                ->sum('debit');
+
+            $revenueLabels[] = $monthName;
+            $revenueSeries[] = $monthlyRevenue;
+        }
+
+        // Hitung total pendapatan dari 3 bulan untuk ditampilkan di atas chart
+        $totalRevenue3Months = array_sum($revenueSeries);
+
         $revenue = [
-            'total' => 'Rp ' . number_format($revenueThisMonth),
-            'percentage' => $revenuePercentageChange,
-            'series' => $revenueSeries
+            'total' => 'Rp ' . number_format($totalRevenue3Months),
+            'labels' => $revenueLabels,  // Kirim label bulan (e.g., ["Jul 2025", "Aug 2025"])
+            'series' => $revenueSeries   // Kirim data pendapatan per bulan (e.g., [50000, 75000])
         ];
 
         // =================================================================
-        // 3: PASANG SAMBUNG BARU (PSB)
-        // Logika: Jumlah pelanggan baru pada bulan berjalan.
+        // 3: SALES PERFORMANCE
         // =================================================================
-        $psbThisMonthCount = User::whereBetween('created_at', [$startOfMonth, $today])->count();
-        $psbLastMonthCount = User::whereBetween('created_at', [$startOfLastMonth, $endOfLastMonth])->count();
-        $psbPercentageChange = ($psbLastMonthCount > 0) ? round((($psbThisMonthCount - $psbLastMonthCount) / $psbLastMonthCount) * 100) : 0;
+        $salesData = (clone $customerQuery) // Clone dari query customer awal
+            ->select('sales', DB::raw('count(*) as total_pelanggan'))
+            ->whereNotNull('sales')
+            ->where('sales', '!=', '')
+            ->groupBy('sales')
+            ->orderByRaw('COUNT(*) DESC')
+            ->get();
+            
+        $totalSalesPersons = $salesData->count(); // 1. Hitung jumlah sales dari data yang didapat
 
-        $psbSeries = User::select(DB::raw('DATE(created_at) as date'), DB::raw('COUNT(id) as total'))
-            ->where('created_at', '>=', $startOfMonth)
-            ->groupBy('date')->orderBy('date', 'ASC')->pluck('total')->toArray();
-        $subscriptions = [
-            'count' => number_format($psbThisMonthCount),
-            'percentage' => $psbPercentageChange,
-            'series' => $psbSeries
+        $salesPerformance = [
+            'count'  => number_format($totalSalesPersons), // 2. Gunakan jumlah sales, bukan total pelanggan
+            'labels' => $salesData->pluck('sales')->toArray(),
+            'series' => $salesData->pluck('total_pelanggan')->toArray(),
         ];
+        
 
         // =================================================================
-        // 4: EKSPANSI (EXPENSES)
-        // Logika: Total pengeluaran pada bulan berjalan.
-        // =================================================================
-        $expensesThisMonth = Expense::whereBetween('created_at', [$startOfMonth, $today])->sum('amount');
-        $expensesLastMonth = Expense::whereBetween('created_at', [$startOfLastMonth, $endOfLastMonth])->sum('amount');
-        $expensesPercentageChange = ($expensesLastMonth > 0) ? round((($expensesThisMonth - $expensesLastMonth) / $expensesLastMonth) * 100) : 0;
-
-        $expensesSeries = Expense::select(DB::raw('DATE(created_at) as date'), DB::raw('SUM(amount) as total'))
-            ->where('created_at', '>=', $startOfMonth)
-            ->groupBy('date')->orderBy('date', 'ASC')->pluck('total')->toArray();
-        $expenses = [
-            'total' => 'Rp ' . number_format($expensesThisMonth),
-            'percentage' => $expensesPercentageChange,
-            'series' => $expensesSeries
-        ];
-
-        // =================================================================
-        // 5: SALES (GROWTH)
-        // Logika: Jumlah pelanggan baru dari sales bulan ini.
-        // *** PERUBAHAN LOGIKA DI SINI ***
-        // =================================================================
-        $growthThisMonth = $psbThisMonthCount; // Menggunakan data jumlah PSB
-        $growthLastMonth = $psbLastMonthCount;
-        $growthPercentage = ($growthLastMonth > 0) ? round((($growthThisMonth - $growthLastMonth) / $growthLastMonth) * 100) : 0;
-        $growth = [
-            'total' => number_format($growthThisMonth), // Menampilkan JUMLAH pelanggan baru
-            'percentage' => $growthPercentage, // Persentase perubahan dari bulan lalu
-            'series' => [$growthPercentage > 0 ? $growthPercentage : 0] // Grafik menampilkan persentase pertumbuhan
-        ];
-
-        // =================================================================
-        // 6: BEBAS (CUSTOM METRIC)
-        // Logika: Dibiarkan sebagai contoh statis.
-        // =================================================================
-        $customMetric = [
-            'count' => number_format(15),
-            'percentage' => 5,
-            'series' => [60, 30, 10],
-            'labels' => ['Baru', 'Proses', 'Selesai']
-        ];
-
-        // =================================================================
-        // FINAL RESPONSE
+        // LANGSUNG KIRIM DATA TOTAL USERS, ABAIKAN SEMUA BAGIAN LAIN
         // =================================================================
         return response()->json([
-            'activeUsers'   => $activeUsers,
-            'revenue'       => $revenue,
-            'subscriptions' => $subscriptions,
-            'expenses'      => $expenses,
-            'growth'        => $growth,
-            'customMetric'  => $customMetric,
+            'totalUsers'    => $activeUsers,
+            'revenue'         => $revenue,
+            'sales'         => $salesPerformance,
+            // Kita buat data dummy untuk card lain agar tidak error di frontend
+            'expenses'      => ['total' => 'Rp 0', 'percentage' => 0, 'series' => []],
+            'growth'        => ['total' => '0', 'percentage' => 0, 'series' => [0]],
+            'customMetric'  => ['count' => 0, 'percentage' => 0, 'series' => []],
         ]);
     }
 }

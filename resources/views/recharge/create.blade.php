@@ -88,56 +88,72 @@
     <script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            // ... inisialisasi TomSelect tetap sama ...
+            // Inisialisasi TomSelect
+            const tomSelect = new TomSelect("#select-customer",{
+                create: false,
+                sortField: { field: "text", direction: "asc" }
+            });
 
-            const customerSelect = document.getElementById('select-customer');
             const packageSelect = document.getElementById('package_id');
             const durationSelect = document.getElementById('duration_months');
             const amountInput = document.getElementById('amount');
-
-            // PERUBAHAN: Variabel ini sekarang menyimpan harga setor
             let baseSetorPrice = 0;
 
-            // Fungsi untuk menghitung dan update total nominal
-            function updateAmount() {
-                const months = parseInt(durationSelect.value) || 1;
-                // PERUBAHAN: Kalkulasi berdasarkan harga setor
-                const totalAmount = baseSetorPrice * months;
-                amountInput.value = totalAmount;
-            }
-
-            // Event listener saat pelanggan dipilih
-            customerSelect.addEventListener('change', function() {
-                const customerId = this.value;
+            // Fungsi untuk mengambil data pelanggan dan mengisi form
+            function fetchAndFillCustomerData(customerId) {
                 if (!customerId) {
+                    // Reset form jika tidak ada customer ID
+                    tomSelect.clear();
                     packageSelect.value = '';
-                    amountInput.value = '';
-                    baseSetorPrice = 0; // Reset harga setor
+                    amountInput.value = '0';
+                    baseSetorPrice = 0;
                     return;
+                };
+
+                // Tampilkan ID pelanggan di dropdown (jika belum terpilih)
+                if (tomSelect.getValue() !== customerId) {
+                    tomSelect.setValue(customerId, true); // `true` agar tidak trigger event 'change' berulang
                 }
 
-                // Ambil data paket & HARGA SETOR dari server
+                // Ambil data dari server
                 fetch(`/recharge/customer/${customerId}`)
-                    .then(response => response.json())
+                    .then(response => {
+                        if (!response.ok) throw new Error('Gagal mengambil data pelanggan.');
+                        return response.json();
+                    })
                     .then(data => {
-                        // Set package & HARGA SETOR
                         packageSelect.value = data.package_id;
-                        baseSetorPrice = data.customer_setor; // <-- PERUBAHAN UTAMA
-                        
-                        // Langsung panggil fungsi update
+                        baseSetorPrice = data.customer_setor;
                         updateAmount();
                     })
                     .catch(error => {
                         console.error('Error:', error);
-                        alert('Gagal mengambil data pelanggan.');
-                        packageSelect.value = '';
-                        amountInput.value = '';
-                        baseSetorPrice = 0;
+                        alert(error.message);
                     });
+            }
+
+            function updateAmount() {
+                const months = parseInt(durationSelect.value) || 1;
+                const totalAmount = baseSetorPrice * months;
+                amountInput.value = totalAmount;
+            }
+
+            // Event listener saat user memilih manual dari dropdown
+            tomSelect.on('change', function(value) {
+                // Kita hanya jalankan jika nilainya berubah, untuk menghindari loop
+                if (value && value !== tomSelect.getValue()) {
+                    fetchAndFillCustomerData(value);
+                }
             });
 
-            // Event listener saat durasi diubah
             durationSelect.addEventListener('change', updateAmount);
+
+            // --- INI BAGIAN UTAMA YANG BARU ---
+            // Cek jika ada pelanggan yang sudah dipilih dari URL saat halaman pertama kali dimuat
+            const selectedCustomerId = "{{ $selectedCustomer->id ?? '' }}";
+            if (selectedCustomerId) {
+                fetchAndFillCustomerData(selectedCustomerId);
+            }
         });
     </script>
     @endpush

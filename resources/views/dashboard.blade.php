@@ -6,47 +6,83 @@
     </x-slot>
 
     <div class="py-8">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-            
+        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8"> 
             <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
 
-                {{-- A: Active Users --}}
-                <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-md p-5">
-                    <p class="text-sm text-gray-500 dark:text-gray-400">Active Users</p>
-                    <h3 class="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                        {{-- ID DITAMBAHKAN --}}
-                        <span id="active-users-count">...</span> 
-                        <span id="active-users-percentage" class="text-sm font-semibold"></span>
-                    </h3>
-                    <div id="chart-active-users" class="mt-2"></div>
+                {{-- A: Total Pelanggan (Desain Final & Lebih Robust) --}}
+                <div class="rounded-lg shadow-md text-white overflow-hidden flex flex-col" style="background-color:rgb(122, 94, 2);"> {{-- Warna krem langsung dengan style --}}
+                    {{-- Bagian Atas (Konten Utama) --}}
+                    <div class="p-5 flex justify-between items-center flex-grow">
+                        <div>
+                            {{-- Angka Total, dibuat lebih besar dengan text-6xl --}}
+                            <h3 class="text-2xl font-bold" id="total-users-count">...</h3>
+                            
+                            {{-- Label yang Benar: Total Pelanggan --}}
+                            <p class="text-lg mt-1">Total Pelanggan</p>
+                        </div>
+                        <div class="opacity-70">
+                            {{-- Ikon User (Contoh menggunakan Heroicons, pastikan terinstal atau ganti dengan SVG/gambar Anda) --}}
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                            </svg>
+                        </div>
+                    </div>
+                    {{-- Bagian Bawah (Link Footer dengan warna border/latar lebih gelap) --}}
+                    <a href="{{ route('customers.index') }}" class="block p-2 text-center transition-colors" style="background-color:rgb(226, 171, 31);"> {{-- Warna lebih gelap langsung dengan style --}}
+                        info <span class="inline-block ml-1">&rarr;</span>
+                    </a>
                 </div>
 
-                {{-- B: Revenue --}}
-                <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-md p-5">
-                    <div class="flex justify-between items-center">
-                        <p class="text-sm text-gray-500 dark:text-gray-400">Revenue</p>
-                        <span class="text-xs text-gray-400">Last 7 days</span>
+                {{-- B: Revenue (Struktur Diperbaiki) --}}
+                <div class="rounded-lg shadow-md text-white overflow-hidden flex flex-col" style="background-color: #166534;"> {{-- Warna Hijau Tua --}}
+                    {{-- Bagian Atas (Konten Utama) --}}
+                    <div class="p-5 flex justify-between items-center flex-grow">
+                        {{-- SISI KIRI: Semua teks dikelompokkan di sini --}}
+                        <div>
+                            <h3 class="text-4xl font-bold" id="revenue-total">...</h3>
+                            <p class="text-lg mt-1">Revenue (3 Bln)</p>
+                        </div>
+                        
+                        {{-- SISI KANAN: Ikon diletakkan di sini --}}
+                        <div class="opacity-70">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                        </div>
                     </div>
-                    <h3 class="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                        {{-- ID DITAMBAHKAN --}}
-                        <span id="revenue-total">...</span> 
-                        <span id="revenue-percentage" class="text-sm font-semibold"></span>
-                    </h3>
-                    <div id="chart-revenue" class="mt-2"></div>
+
+                    {{-- Bagian Tengah (Container untuk Chart Diagram) --}}
+                    <div id="chart-revenue" class="px-5 -mt-4"></div>
+
+                    {{-- Bagian Bawah (Link Footer) --}}
+                    <a href="{{ route('reports.index') }}" class="block p-2 text-center transition-colors" style="background-color:rgb(38, 151, 83);"> {{-- Warna hijau lebih gelap --}}
+                        info <span class="inline-block ml-1">&rarr;</span>
+                    </a>
                 </div>
 
-                {{-- C: Active Subscriptions --}}
-                <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-md p-5">
-                    <div class="flex justify-between items-center">
-                        <p class="text-sm text-gray-500 dark:text-gray-400">Active Subscriptions</p>
-                        <span class="text-xs text-gray-400">Last 7 days</span>
+                {{-- C: Sales Performance (Tinggi Disesuaikan) --}}
+                <div class="rounded-lg shadow-md text-white overflow-hidden flex flex-col" style="background-color: #8c0000;"> {{-- Warna Merah Tua --}}
+                    {{-- Bagian Atas (Konten Utama) --}}
+                    <div class="p-5 flex justify-between items-center">
+                        <div>
+                            {{-- Angka Total --}}
+                            <h3 class="text-4xl font-bold" id="sales-count">...</h3>
+                            {{-- Label --}}
+                            <p class="text-lg mt-1">Sales Aktif</p>
+                        </div>
+                        <div class="opacity-50">
+                            {{-- Ikon --}}
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                            </svg>
+                        </div>
                     </div>
-                    <h3 class="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                        {{-- ID DITAMBAHKAN --}}
-                        <span id="subs-count">...</span> 
-                        <span id="subs-percentage" class="text-sm font-semibold"></span>
-                    </h3>
-                    <div id="chart-subs" class="mt-2"></div>
+                    {{-- Bagian Tengah (Container untuk Chart) - mt-auto akan mendorong footer ke bawah --}}
+                    <div id="chart-sales" class="px-5 -mt-6 flex-grow"></div>
+                    {{-- Bagian Bawah (Link Footer) --}}
+                    <a href="{{ route('customers.index') }}" class="block p-2 text-center transition-colors" style="background-color: #bb0000;">
+                        info <span class="inline-block ml-1">&rarr;</span>
+                    </a>
                 </div>
 
                 {{-- D: Expenses --}}
@@ -111,24 +147,50 @@
         }
 
         // 1. Inisialisasi semua chart dengan data kosong agar tampil saat loading
-        const activeUsersChart = new ApexCharts(document.querySelector("#chart-active-users"), {
-            chart: { type: 'radialBar', height: 150 }, series: [0], labels: ['Active'],
-            plotOptions: { radialBar: { hollow: { size: '70%' }, dataLabels: { show: true, value: { fontSize: '22px', formatter: val => val + '%' } } } },
-            colors: ['#206bc4']
-        });
-        activeUsersChart.render();
 
+        // Inisialisasi Revenue Chart (sekarang menjadi Bar Chart dengan warna putih)
         const revenueChart = new ApexCharts(document.querySelector("#chart-revenue"), {
-            chart: { type: 'line', height: 150, sparkline: { enabled: true }},
-            series: [{ name: 'Revenue', data: [] }], stroke: { curve: 'smooth', width: 3 }, colors: ['#206bc4']
+            chart: {
+                type: 'bar', // 1. Tipe diubah menjadi 'bar'
+                height: 80,
+                sparkline: { enabled: true }
+            },
+            series: [{
+                name: 'Revenue',
+                data: []
+            }],
+            colors: ['rgb(110, 249, 131)'], // 2. Warna batang dibuat putih
+            plotOptions: {
+                bar: {
+                    columnWidth: '60%' // 3. Atur lebar batang
+                }
+            },
+            labels: [], // 4. Tambahkan properti labels agar bisa di-update
+            tooltip: {
+                theme: 'dark',
+                x: {
+                    show: true, // Tampilkan label bulan di tooltip
+                },
+                y: {
+                    formatter: function (val) {
+                        return "Rp " + new Intl.NumberFormat('id-ID').format(val)
+                    }
+                }
+            }
         });
         revenueChart.render();
-
-        const subsChart = new ApexCharts(document.querySelector("#chart-subs"), {
-            chart: { type: 'bar', height: 150, sparkline: { enabled: true }},
-            series: [{ name: 'Subscriptions', data: [] }], colors: ['#206bc4'], plotOptions: { bar: { columnWidth: '60%' }}
+        // Inisialisasi salesChart
+        const salesChart = new ApexCharts(document.querySelector("#chart-sales"), {
+            chart: { type: 'donut', height: 120 },
+            series: [],
+            labels: [],
+            legend: { show: false },
+            dataLabels: { enabled: false },
+            tooltip: {
+                y: { formatter: (val) => val + " pelanggan" }
+            }
         });
-        subsChart.render();
+        salesChart.render()
 
         const expensesChart = new ApexCharts(document.querySelector("#chart-expenses"), {
             chart: { type: 'area', height: 150, sparkline: { enabled: true }},
@@ -152,27 +214,30 @@
         async function fetchDashboardData() {
             try {
                 // Ganti '/api/dashboard-stats' jika route Anda berbeda
-                const response = await fetch('/api/dashboard-stats');
+                const response = await fetch("{{ route('dashboard.stats') }}");
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
                 const data = await response.json();
 
-                // Update Kartu A: Active Users
-                document.getElementById('active-users-count').textContent = data.activeUsers.count;
-                setPercentage(document.getElementById('active-users-percentage'), data.activeUsers.percentage);
-                activeUsersChart.updateSeries(data.activeUsers.series);
+                // Update Kartu A: total Users
+                document.getElementById('total-users-count').textContent = data.totalUsers.count;
 
                 // Update Kartu B: Revenue
                 document.getElementById('revenue-total').textContent = data.revenue.total;
-                setPercentage(document.getElementById('revenue-percentage'), data.revenue.percentage);
-                revenueChart.updateSeries([{ data: data.revenue.series }]);
-                
-                // Update Kartu C: Active Subscriptions
-                document.getElementById('subs-count').textContent = data.subscriptions.count;
-                setPercentage(document.getElementById('subs-percentage'), data.subscriptions.percentage);
-                subsChart.updateSeries([{ data: data.subscriptions.series }]);
-
+                // setPercentage(document.getElementById('revenue-percentage'), data.revenue.percentage); // Baris ini di-nonaktifkan karena elemennya tidak ada di HTML Anda
+                revenueChart.updateOptions({ // Gunakan updateOptions untuk memperbarui series dan labels
+                    series: [{
+                        data: data.revenue.series
+                    }],
+                    labels: data.revenue.labels
+                });
+                // Update Kartu C: Sales Performance
+                if (data.sales) {
+                    document.getElementById('sales-count').textContent = data.sales.count;
+                    salesChart.updateOptions({series: data.sales.series,labels: data.sales.labels
+                    });
+                }
                 // Update Kartu D: Expenses
                 document.getElementById('expenses-total').textContent = data.expenses.total;
                 setPercentage(document.getElementById('expenses-percentage'), data.expenses.percentage);

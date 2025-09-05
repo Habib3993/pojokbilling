@@ -11,9 +11,18 @@ class LocationScope implements Scope
 {
     public function apply(Builder $builder, Model $model): void
     {
-        // Hanya terapkan saringan jika pengguna yang login adalah 'admin'
-        if (Auth::check() && Auth::user()->hasRole('admin')) {
-            
+        // Pastikan ada user yang login sebelum melakukan apa pun
+        if (Auth::check()) {
+            $user = Auth::user();
+
+            // ================= PERBAIKAN DI SINI =================
+            // Jika user adalah superadmin, JANGAN lakukan filter apapun. Langsung hentikan.
+            if ($user->hasRole('superadmin')) {
+                return; // Keluar dari fungsi, tidak ada scope yang diterapkan.
+            }
+
+            // Jika user adalah admin (bukan superadmin), baru terapkan filter lokasi.
+            if ($user->hasRole('admin')) {
             // Daftar model "global" yang BISA DILIHAT oleh semua admin,
             // jadi TIDAK akan difilter berdasarkan lokasi.
             $globalModels = [
@@ -37,5 +46,6 @@ class LocationScope implements Scope
         }
         // Jika yang login adalah superadmin, kondisi di atas tidak terpenuhi,
         // sehingga tidak ada filter sama sekali dan ia bisa melihat semuanya.
+    }
     }
 }

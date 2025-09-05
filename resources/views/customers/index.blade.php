@@ -6,7 +6,7 @@
     </x-slot>
     <div class="py-12">
         <div class="max-w-full mx-auto sm:px-6 lg:px-8">
-            <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
+            <div class="bg-white dark:bg-gray-800 shadow-sm sm:rounded-lg">
                 <div class="p-6 text-gray-900 dark:text-gray-100">
                     <div class="flex justify-between items-center mb-4">
                         <form action="{{ route('customers.index') }}" method="GET" class="w-1/3">
@@ -22,20 +22,20 @@
                         <table class="min-w-full divide-y divide-gray-200">
                         <thead class="bg-gray-50 dark:bg-gray-700">
                             <tr>
-                                <th class="sticky top-0 px-6 py-2 bg-gray-50 dark:bg-gray-700 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Nama</th>
-                                <th class="sticky top-0 px-6 py-2 bg-gray-50 dark:bg-gray-700 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Lokasi</th>
-                                <th class="sticky top-0 px-6 py-2 bg-gray-50 dark:bg-gray-700 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Paket</th>
-                                <th class="sticky top-0 px-6 py-2 bg-gray-50 dark:bg-gray-700 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Serial Number</th>
-                                <th class="sticky top-0 px-6 py-2 bg-gray-50 dark:bg-gray-700 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Telephone</th>
-                                <th class="sticky top-0 px-6 py-2 bg-gray-50 dark:bg-gray-700 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">OLT</th>
-                                <th class="sticky top-0 px-6 py-2 bg-gray-50 dark:bg-gray-700 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Register</th>
-                                <th class="sticky top-0 px-6 py-2 bg-gray-50 dark:bg-gray-700 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Vlan</th>
-                                <th class="sticky top-0 px-6 py-2 bg-gray-50 dark:bg-gray-700 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">ODP</th>
-                                <th class="sticky top-0 px-6 py-2 bg-gray-50 dark:bg-gray-700 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Tgl Langganan</th>
-                                <th class="sticky top-0 px-6 py-2 bg-gray-50 dark:bg-gray-700 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Sales</th>
-                                <th class="sticky top-0 px-6 py-2 bg-gray-50 dark:bg-gray-700 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Tagihan</th>
-                                <th class="sticky top-0 px-6 py-2 bg-gray-50 dark:bg-gray-700 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Setor</th>
-                                <th class="sticky top-0 px-6 py-2 bg-gray-50 dark:bg-gray-700 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Aksi</th>
+                                <th class="px-6 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Nama</th>
+                                <th class="px-6 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Lokasi</th>
+                                <th class="px-6 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Paket</th>
+                                <th class="px-6 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Serial Number</th>
+                                <th class="px-6 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Telephone</th>
+                                <th class="px-6 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">OLT</th>
+                                <th class="px-6 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Register</th>
+                                <th class="px-6 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Vlan</th>
+                                <th class="px-6 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">ODP</th>
+                                <th class="px-6 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Tgl Langganan</th>
+                                <th class="px-6 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Sales</th>
+                                <th class="px-6 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Tagihan</th>
+                                <th class="px-6 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Setor</th>
+                                <th class="px-6 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Aksi</th>
                             </tr>
                         </thead>
                             <tbody class="bg-white divide-y divide-gray-200 dark:bg-gray-800">

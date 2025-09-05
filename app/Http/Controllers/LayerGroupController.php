@@ -24,8 +24,19 @@ class LayerGroupController extends Controller
         if (!auth()->check() || !auth()->user()->hasRole('superadmin')) {
             abort(403, 'ANDA TIDAK MEMILIKI HAK AKSES.');
         }
+        $availableIcons = [
+            'fa-solid fa-circle-xmark',
+            'fa-solid fa-stop',
+            'fa-solid fa-code-fork',
+            'fa-solid fa-thumbtack',
+            'fa-solid fa-location-pin',
+            'fa-solid fa-location-dot',
+            'fa-solid fa-server',
+            'fa-regular fa-circle',
+            'fa-solid fa-diagram-project',
+        ];
 
-        return view('layer_groups.create');
+        return view('layer_groups.create', compact('availableIcons'));
     }
 
     public function store(Request $request)
@@ -42,12 +53,24 @@ class LayerGroupController extends Controller
 
     public function edit(LayerGroup $layerGroup)
     {
+        
         // PENJAGA: Cek apakah user adalah superadmin
         if (!auth()->check() || !auth()->user()->hasRole('superadmin')) {
             abort(403, 'ANDA TIDAK MEMILIKI HAK AKSES.');
         }
+        $availableIcons = [
+            'fa-solid fa-circle-xmark',
+            'fa-solid fa-stop',
+            'fa-solid fa-code-fork',
+            'fa-solid fa-thumbtack',
+            'fa-solid fa-location-pin',
+            'fa-solid fa-location-dot',
+            'fa-solid fa-server',
+            'fa-regular fa-circle', // Menggunakan fa-regular fa-circle sebagai contoh
+            'fa-solid fa-diagram-project', // Mengganti fa-regular fa-diagram-project
+        ];
 
-        return view('layer_groups.edit', compact('layerGroup'));
+        return view('layer_groups.edit', compact('layerGroup', 'availableIcons'));
     }
 
     public function update(Request $request, LayerGroup $layerGroup)

@@ -6,7 +6,7 @@
     class LayerGroup extends BaseModel
     {
         use HasFactory;
-        protected $fillable = ['name'];
+        protected $fillable = ['name', 'color', 'icon'];
 
         public function mapPoints()
         {
