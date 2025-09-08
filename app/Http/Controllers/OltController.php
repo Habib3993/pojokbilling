@@ -38,23 +38,11 @@ class OltController extends Controller
             'password' => 'required|string',
         ]);
 
-        // --- BAGIAN DEBUGGING ---
-        // Kita akan coba koneksi di sini secara langsung untuk melihat error-nya.
+        // --- BAGIAN DEBUGGING YANG DIPERBAIKI ---
         try {
-            $ssh = new SSH2($validated['ip_address'], 22, 15);
-
-            // SOLUSI: Paksa penggunaan algoritma Key Exchange (kex) yang lebih tua.
-            // OLT ZTE C320 tampaknya lebih kompatibel dengan algoritma ini.
-            $ssh->setPreferredAlgorithms(['kex' => 'diffie-hellman-group1-sha1']);
-
-            if (!$ssh->login($validated['username'], $validated['password'])) {
-                // Jika login gagal, kembalikan dengan pesan error yang jelas
-                return back()->withInput()->with('error', 'Koneksi Berhasil, tetapi Login Gagal. Periksa kembali username/password.');
-        }
-            $ssh->disconnect();
-
-        } catch (Exception $e) {
-            // Jika ada error saat koneksi (misal timeout), kembalikan dengan pesan error
+            $oltService = new OltService();
+            $oltService->testConnection($validated['ip_address'], $validated['username'], $validated['password']);
+        } catch (\Exception $e) {
             return back()->withInput()->with('error', 'Gagal terhubung ke OLT. Pesan: ' . $e->getMessage());
         }
         

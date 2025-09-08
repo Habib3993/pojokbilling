@@ -68,3 +68,27 @@
         </div>
     </div>
 </x-app-layout>
+
+<style>
+@media (max-width: 768px) {
+    #sidebar {
+        display: none; /* Hide the sidebar on mobile devices */
+    }
+}
+</style>
+
+<script>
+// Hide sidebar dynamically on mobile devices
+function hideSidebarOnMobile() {
+    const sidebar = document.getElementById('sidebar');
+    if (window.innerWidth <= 768) {
+        sidebar.style.display = 'none';
+    } else {
+        sidebar.style.display = 'block';
+    }
+}
+
+// Run on page load and window resize
+window.addEventListener('load', hideSidebarOnMobile);
+window.addEventListener('resize', hideSidebarOnMobile);
+</script>

@@ -12,8 +12,13 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('layer_groups', function (Blueprint $table) {
-            $table->string('color')->nullable()->after('name');
-            $table->string('icon')->nullable()->after('color');
+            // Tambahkan kolom color dan icon yang hilang
+            if (!Schema::hasColumn('layer_groups', 'color')) {
+                $table->string('color')->nullable()->after('name');
+            }
+            if (!Schema::hasColumn('layer_groups', 'icon')) {
+                $table->string('icon')->nullable()->after('color');
+            }
         });
     }
 
@@ -25,5 +30,5 @@ return new class extends Migration
         Schema::table('layer_groups', function (Blueprint $table) {
             $table->dropColumn(['color', 'icon']);
         });
-    }   
+    }
 };

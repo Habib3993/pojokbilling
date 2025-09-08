@@ -85,8 +85,8 @@ Route::middleware('auth')->group(function () {
     // --- Rute Lainnya (Syntax Diperbaiki & Diberi Proteksi Dasar) ---
     // =========================================================================
 
-    // Layer Groups (Hanya Superadmin yang boleh kelola)
-    Route::resource('layer-groups', LayerGroupController::class)->middleware('can:manage layer_groups');
+    // Layer Groups (Simplified middleware)
+    Route::resource('layer-groups', LayerGroupController::class);
 
     // Resource Controllers (Nanti bisa disesuaikan dengan izin 'can:')
     Route::resource('transactions', TransactionController::class); // TODO: Proteksi dengan 'can:'
@@ -123,6 +123,28 @@ Route::middleware('auth')->group(function () {
     Route::get('/ip-pools/sync/{routerId}', [IpPoolController::class, 'sync'])->name('ip-pools.sync');
     Route::get('/routers/{router}/status', [RouterController::class, 'getStatus'])->name('routers.status');
     Route::get('/packages/sync/{routerId}', [PackageController::class, 'sync'])->name('packages.sync');
+    Route::post('/test-olt-connection', function (Illuminate\Http\Request $request) {
+        $request->validate([
+            'ip' => 'required|ip',
+            'username' => 'required|string',
+            'password' => 'required|string',
+        ]);
+
+        try {
+            $oltService = new App\Services\OltService();
+            $oltService->testConnection($request->ip, $request->username, $request->password);
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Koneksi ke OLT berhasil!'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Koneksi gagal: ' . $e->getMessage()
+            ], 400);
+        }
+    })->name('test.olt.connection');
 });
 
 require __DIR__.'/auth.php';

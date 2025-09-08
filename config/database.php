@@ -61,9 +61,11 @@ return [
                 PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],
             'dump' => [
-                'dump_binary_path' => 'C:\xampp\mysql\bin', // <-- Pastikan path ini benar
+                'dump_binary_path' => env('DB_DUMP_BINARY_PATH', 'C:/xampp/mysql/bin'),
                 'use_single_transaction' => true,
-                'timeout' => 300, // 5 menit
+                'timeout' => 300,
+                'exclude_tables' => [],
+                'add_extra_option' => '--single-transaction --routines --triggers',
             ],
         ],
 

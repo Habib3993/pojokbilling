@@ -40,9 +40,8 @@
                         {{-- SISI KIRI: Semua teks dikelompokkan di sini --}}
                         <div>
                             <h3 class="text-4xl font-bold" id="revenue-total">...</h3>
-                            <p class="text-lg mt-1">Revenue (3 Bln)</p>
+                            <p class="text-lg mt-1">Revenue</p>
                         </div>
-                        
                         {{-- SISI KANAN: Ikon diletakkan di sini --}}
                         <div class="opacity-70">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -50,10 +49,8 @@
                             </svg>
                         </div>
                     </div>
-
                     {{-- Bagian Tengah (Container untuk Chart Diagram) --}}
                     <div id="chart-revenue" class="px-5 -mt-4"></div>
-
                     {{-- Bagian Bawah (Link Footer) --}}
                     <a href="{{ route('reports.index') }}" class="block p-2 text-center transition-colors" style="background-color:rgb(38, 151, 83);"> {{-- Warna hijau lebih gelap --}}
                         info <span class="inline-block ml-1">&rarr;</span>
@@ -86,28 +83,46 @@
                 </div>
 
                 {{-- D: Expenses --}}
-                <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-md p-5">
-                    <div class="flex justify-between items-center">
-                        <p class="text-sm text-gray-500 dark:text-gray-400">Expenses</p>
-                        <span class="text-xs text-gray-400">Monthly</span>
+                <div class="text-white rounded-2xl shadow-md flex flex-col overflow-hidden" style="background-color:rgb(46, 64, 178);">
+                    <div class="p-5 flex-grow">
+                        <div class="flex justify-between items-center">
+                            <p class="text-sm text-gray-500 dark:text-gray-400">Expenses</p>
+                            <span class="text-xs text-gray-400">Monthly</span>
+                        </div>
+                        <div class="opacity-70">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                        </div>
+                        <h3 class="text-4xl font-bold text-gray-900 dark:text-gray-100">
+                            <span id="expenses-total">...</span>
+                            <span id="expenses-percentage" class="text-sm font-semibold"></span> <!-- Added missing element -->
+                        </h3>
+                        <div id="chart-expenses" class="mt-2"></div>
                     </div>
-                    <h3 class="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                        {{-- ID DITAMBAHKAN --}}
-                        <span id="expenses-total">...</span> 
-                        <span id="expenses-percentage" class="text-sm font-semibold"></span>
-                    </h3>
-                    <div id="chart-expenses" class="mt-2"></div>
+                    <a href="#" class="block p-2 text-center text-white transition-colors" style="background-color:rgb(0, 31, 131);">
+                        info <span class="inline-block ml-1">&rarr;</span>
+                    </a>
                 </div>
 
                 {{-- E: Growth --}}
-                <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-md p-5">
-                    <p class="text-sm text-gray-500 dark:text-gray-400">Growth</p>
-                    <h3 class="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                        {{-- ID DITAMBAHKAN --}}
-                        <span id="growth-total">...</span> 
-                        <span id="growth-percentage" class="text-sm font-semibold"></span>
-                    </h3>
-                    <div id="chart-growth" class="mt-2"></div>
+                <div class="text-white rounded-2xl shadow-md flex flex-col overflow-hidden" style="background-color: #a16207;">
+                    <div class="opacity-70">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                        </svg>
+                    </div>
+                    <div class="p-5 flex-grow">
+                        <p class="text-sm text-gray-500 dark:text-gray-400">Growth</p>
+                        <h3 class="text-4xl font-bold text-gray-900 dark:text-gray-100">
+                            <span id="growth-total">...</span>
+                            <span id="growth-percentage" class="text-sm font-semibold"></span> <!-- Added missing element -->
+                        </h3>
+                        <div id="chart-growth" class="mt-2"></div>
+                    </div>
+                    <a href="#" class="block p-2 text-center text-white transition-colors" style="background-color: #ca8a04;">
+                        info <span class="inline-block ml-1">&rarr;</span>
+                    </a>
                 </div>
 
                 {{-- F: Custom (Free Section) --}}
@@ -119,7 +134,7 @@
                     <h3 class="text-2xl font-bold text-gray-900 dark:text-gray-100">
                         {{-- ID DITAMBAHKAN --}}
                         <span id="custom-metric-count">...</span> 
-                        <span id="custom-metric-percentage" class="text-sm font-semibold"></span>
+                        <span id="custom-metric-percentage" class="text-sm font-semibold"></span> <!-- Added missing element -->
                     </h3>
                     <div id="chart-custom" class="mt-2"></div>
                 </div>
@@ -137,12 +152,17 @@
 
         // Fungsi untuk mengatur warna persentase (hijau untuk positif, merah untuk negatif)
         function setPercentage(element, value) {
-            element.textContent = (value > 0 ? '+' : '') + value + '%';
-            element.classList.remove('text-green-600', 'text-red-600');
-            if (value > 0) {
-                element.classList.add('text-green-600');
-            } else if (value < 0) {
-                element.classList.add('text-red-600');
+            if (value === undefined || value === null) {
+                element.textContent = ''; // Hide percentage text if value is undefined or null
+                element.classList.remove('text-green-600', 'text-red-600');
+            } else {
+                element.textContent = (value > 0 ? '+' : '') + value + '%';
+                element.classList.remove('text-green-600', 'text-red-600');
+                if (value > 0) {
+                    element.classList.add('text-green-600');
+                } else if (value < 0) {
+                    element.classList.add('text-red-600');
+                }
             }
         }
 
@@ -179,6 +199,7 @@
             }
         });
         revenueChart.render();
+        
         // Inisialisasi salesChart
         const salesChart = new ApexCharts(document.querySelector("#chart-sales"), {
             chart: { type: 'donut', height: 120 },
@@ -191,16 +212,106 @@
             }
         });
         salesChart.render()
-
+        
+        // Ekspansi 
         const expensesChart = new ApexCharts(document.querySelector("#chart-expenses"), {
-            chart: { type: 'area', height: 150, sparkline: { enabled: true }},
-            series: [{ name: 'Expenses', data: [] }], stroke: { curve: 'smooth', width: 2 }, colors: ['#d63939'], fill: { opacity: 0.3 }
+            chart: {
+                type: 'area',
+                height: 150,
+                // sparkline: { enabled: true }, // <-- HAPUS ATAU KOMENTARI BARIS INI
+                toolbar: { show: false },      // Tambahan: Sembunyikan menu hamburger
+                zoom: { enabled: false }       // Tambahan: Matikan fungsi zoom saat di-drag
+            },
+            grid: {
+                show: false, // Tambahan: Sembunyikan garis grid
+                padding: { left: 0, right: 0 } // Tambahan: Hapus padding agar grafik penuh
+            },
+            xaxis: {
+                labels: { show: false }, // Sembunyikan label di sumbu-X
+                axisBorder: { show: false },
+                axisTicks: { show: false }
+            },
+            yaxis: {
+                labels: { show: false } // Sembunyikan label di sumbu-Y
+            },
+            series: [{
+                name: 'Pengeluaran',
+                data: []
+            }],
+            stroke: {
+                curve: 'smooth',
+                width: 2
+            },
+            colors: ['#d63939'],
+            fill: {
+                opacity: 0.3
+            },
+            labels: [],
+            tooltip: {
+                theme: 'dark',
+                x: {
+                    show: true,
+                },
+                y: {
+                    title: {
+                        formatter: (seriesName) => ''
+                    },
+                    formatter: function (val) {
+                        return "Rp " + new Intl.NumberFormat('id-ID').format(val);
+                    }
+                }
+            }
         });
         expensesChart.render();
 
+        // growth
         const growthChart = new ApexCharts(document.querySelector("#chart-growth"), {
-            chart: { type: 'radialBar', height: 150 }, series: [0], labels: ['Growth'],
-            plotOptions: { radialBar: { hollow: { size: '65%' } } }, colors: ['#2fb344']
+            chart: {
+                type: 'bar', // Tipe diubah menjadi 'bar'
+                height: 150,
+                toolbar: { show: false },
+                zoom: { enabled: false }
+            },
+            plotOptions: {
+                bar: {
+                    columnWidth: '60%',
+                    distributed: true, // Setiap batang punya warna berbeda (opsional)
+                }
+            },
+            series: [{
+                name: 'PSB', // Nama series untuk tooltip
+                data: []
+            }],
+            labels: [],
+            xaxis: {
+                labels: { show: false },
+                axisBorder: { show: false },
+                axisTicks: { show: false }
+            },
+            yaxis: {
+                labels: { show: false }
+            },
+            grid: {
+                show: false,
+                padding: { top: 0, right: 0, bottom: 0, left: 0 }
+            },
+            legend: {
+                show: false // Sembunyikan legenda
+            },
+            tooltip: {
+                theme: 'dark',
+                x: {
+                    show: true // Tampilkan nama bulan di tooltip
+                },
+                y: {
+                    title: {
+                        formatter: (seriesName) => 'Total PSB:'
+                    },
+                    formatter: function (val) {
+                        return val + " Pelanggan"; // Format angka di tooltip
+                    }
+                }
+            }
         });
         growthChart.render();
 
@@ -241,12 +352,33 @@
                 // Update Kartu D: Expenses
                 document.getElementById('expenses-total').textContent = data.expenses.total;
                 setPercentage(document.getElementById('expenses-percentage'), data.expenses.percentage);
-                expensesChart.updateSeries([{ data: data.expenses.series }]);
+                expensesChart.updateOptions({
+                    series: [{
+                        data: data.expenses.series
+                    }],
+                    labels: data.expenses.labels,
+                    dataLabels: {
+                        enabled: false // Disable data labels on the graph
+                    },
+                    tooltip: {
+                        y: {
+                            formatter: function (val, opts) {
+                                const label = opts.w.globals.labels[opts.dataPointIndex];
+                                return label + ': Rp ' + new Intl.NumberFormat('id-ID').format(val);
+                            }
+                        }
+                    }
+                });
 
                 // Update Kartu E: Growth
-                document.getElementById('growth-total').textContent = data.growth.total + '%';
+                document.getElementById('growth-total').textContent = data.growth.total;
                 setPercentage(document.getElementById('growth-percentage'), data.growth.percentage);
-                growthChart.updateSeries(data.growth.series);
+                growthChart.updateOptions({
+                    series: [{
+                        data: data.growth.series
+                    }],
+                    labels: data.growth.labels
+                });
 
                 // Update Kartu F: Custom Metric
                 document.getElementById('custom-metric-count').textContent = data.customMetric.count;

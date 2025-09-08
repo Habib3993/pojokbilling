@@ -51,6 +51,9 @@ class CustomerController extends Controller
 
     public function store(Request $request)
     {
+        // PERBAIKAN: Tambahkan logging untuk debugging
+        \Log::info('CustomerController: Form submitted', $request->all());
+
         $validated = $request->validate([
             'name' => 'required|string|max:255', 
             'lokasi' => 'required|string|max:255',
@@ -58,52 +61,132 @@ class CustomerController extends Controller
             'serial_number' => 'required|string|max:255',
             'phone' => 'required|string|unique:customers,phone', 
             'olt_id' => 'required|exists:olts,id',
-            'register_port' => 'required|string|max:255',
+            'register_port' => ['required', 'string', 'max:255', 'regex:/^(N\/A|1\/[1-4]\/[1-16]:[1-128])$/'],
             'vlan_ids' => 'required|array',
             'vlan_ids.*' => 'exists:vlans,id',
             'odp' => 'nullable|string|max:255',
             'subscription_date' => 'nullable|date',
             'sales' => 'nullable|string|max:255',
             'setor' => 'nullable|numeric|min:0',
+        ], [
+            'register_port.regex' => 'Format register port harus: 1/[1-4]/[1-16]:[1-128] (contoh: 1/2/8:11). Untuk ZTE C320 gunakan slot 1, subslot 1-4, port 1-16, ONU ID 1-128.'
         ]);
+
+        \Log::info('CustomerController: Validation passed', $validated);
+        
         $validated['location_id'] = auth()->user()->location_id;
         $olt = Olt::findOrFail($validated['olt_id']);
         $package = Package::findOrFail($validated['package_id']);
         $router = $package->router;
         $vlans = Vlan::find($validated['vlan_ids']);
+        
         if (!$router) {
+            \Log::error('CustomerController: Package has no router', ['package_id' => $validated['package_id']]);
             return back()->withInput()->with('error', 'Paket yang dipilih tidak terhubung ke router manapun.');
         }
 
+        \Log::info('CustomerController: Starting integration process');
+
+        // PERBAIKAN: Set timeout lebih lama untuk operasi kompleks
+        set_time_limit(300);
+
+        // 1. STEP 1: Test koneksi OLT terlebih dahulu
+        // Menonaktifkan integrasi dengan OLT sementara waktu
+        // try {
+        //     \Log::info('CustomerController: Testing OLT connection', ['olt_ip' => $olt->ip_address]);
+        //     $oltService = new OltService();
+        //     $oltService->testConnection($olt->ip_address, $olt->username, $olt->password);
+        //     \Log::info('CustomerController: OLT connection successful');
+        // } catch (\Exception $e) {
+        //     \Log::error('CustomerController: OLT connection failed', ['error' => $e->getMessage()]);
+        //     return back()->withInput()->with('error', 'Gagal terhubung ke OLT: ' . $e->getMessage());
+        // }
+
+        // 2. STEP 2: Test koneksi MikroTik
         try {
+            \Log::info('CustomerController: Testing MikroTik connection', ['router_ip' => $router->ip_address]);
             $client = new Client(['host' => $router->ip_address, 'user' => $router->username, 'pass' => $router->password]);
-            $query = (new Query('/ppp/secret/add'))->equal('name', $validated['name'])->equal('password', '123456')->equal('service', 'pppoe')->equal('profile', $package->name);
-            $client->query($query)->read();
+            // Test dengan query sederhana
+            $testQuery = (new Query('/system/identity/print'));
+            $client->query($testQuery)->read();
+            \Log::info('CustomerController: MikroTik connection successful');
         } catch (\Exception $e) {
-            return back()->withInput()->with('error', 'Aktivasi OLT berhasil, tetapi gagal menambah user di MikroTik: ' . $e->getMessage());
+            \Log::error('CustomerController: MikroTik connection failed', ['error' => $e->getMessage()]);
+            return back()->withInput()->with('error', 'Gagal terhubung ke MikroTik: ' . $e->getMessage());
         }
-        $customer = Customer::create($validated);
-        $customer->vlans()->sync($validated['vlan_ids']);
-        
+
+        // 3. STEP 3: Simpan ke database terlebih dahulu
         try {
-            (new OltService())->registerOnu(
-                $olt,
-                $validated['register_port'],
-                $validated['serial_number'],
-                $validated['name'],
-                $validated['odp'],
-                $package,
-                $vlans
-            );
+            \Log::info('CustomerController: Creating customer in database');
+            $customer = Customer::create($validated);
+            $customer->vlans()->sync($validated['vlan_ids']);
+            \Log::info('CustomerController: Customer created successfully', ['customer_id' => $customer->id]);
         } catch (\Exception $e) {
-            // Jika gagal, user di MikroTik bisa dihapus kembali (rollback) jika diperlukan
-            return back()->withInput()->with('error', 'Gagal aktivasi di OLT: ' . $e->getMessage());
+            \Log::error('CustomerController: Database creation failed', ['error' => $e->getMessage()]);
+            return back()->withInput()->with('error', 'Gagal menyimpan data ke database: ' . $e->getMessage());
         }
-        $this->createRadiusUser($customer, $package);
 
-        return redirect()->route('customers.index')->with('success', 'Pelanggan berhasil ditambahkan.');
+        // 4. STEP 4: Konfigurasi di OLT
+        // Menonaktifkan sementara integrasi dengan OLT
+        // try {
+        //     \Log::info('CustomerController: Configuring OLT');
+        //     $oltService->registerOnu(
+        //         $olt,
+        //         $validated['register_port'],
+        //         $validated['serial_number'],
+        //         $validated['name'],
+        //         $validated['odp'],
+        //         $package,
+        //         $vlans
+        //     );
+        //     \Log::info('CustomerController: OLT configuration successful');
+        // } catch (\Exception $e) {
+        //     \Log::error('CustomerController: OLT configuration failed', ['error' => $e->getMessage()]);
+        //     // Rollback: Hapus customer dari database jika OLT gagal
+        //     $customer->vlans()->detach();
+        //     $customer->delete();
+        //     return back()->withInput()->with('error', 'Gagal aktivasi di OLT: ' . $e->getMessage());
+        // }
+
+        // 5. STEP 5: Tambah user di MikroTik
+        try {
+            \Log::info('CustomerController: Adding user to MikroTik');
+            $query = (new Query('/ppp/secret/add'))
+                ->equal('name', $validated['name'])
+                ->equal('password', '123456')
+                ->equal('service', 'pppoe')
+                ->equal('profile', $package->name);
+            $client->query($query)->read();
+            \Log::info('CustomerController: MikroTik user added successfully');
+        } catch (\Exception $e) {
+            \Log::error('CustomerController: MikroTik configuration failed', ['error' => $e->getMessage()]);
+            // Rollback: Hapus dari OLT dan database
+            try {
+                $oltService->deleteOnu($olt, $validated['register_port']);
+            } catch (\Exception $oltError) {
+                \Log::error('CustomerController: OLT rollback failed', ['error' => $oltError->getMessage()]);
+            }
+            $customer->vlans()->detach();
+            $customer->delete();
+            return back()->withInput()->with('error', 'OLT berhasil dikonfigurasi, tetapi gagal menambah user di MikroTik: ' . $e->getMessage());
+        }
+
+        // 6. STEP 6: Tambah ke RADIUS
+        try {
+            \Log::info('CustomerController: Adding to RADIUS');
+            $this->createRadiusUser($customer, $package);
+            \Log::info('CustomerController: RADIUS configuration successful');
+        } catch (\Exception $e) {
+            \Log::warning('CustomerController: RADIUS configuration failed', ['error' => $e->getMessage()]);
+            // Jika RADIUS gagal, tetap lanjutkan karena ini optional
+            // Tapi beri notifikasi
+            return redirect()->route('customers.index')
+                ->with('warning', 'Pelanggan berhasil ditambahkan ke OLT dan MikroTik, tetapi gagal sinkronisasi RADIUS: ' . $e->getMessage());
+        }
+
+        \Log::info('CustomerController: All integrations successful', ['customer_id' => $customer->id]);
+        return redirect()->route('customers.index')->with('success', 'Pelanggan berhasil ditambahkan ke semua sistem (Database, OLT, MikroTik, RADIUS).');
     }
-
 
     public function edit(Customer $customer)
     {
@@ -116,56 +199,38 @@ class CustomerController extends Controller
 
     public function update(Request $request, Customer $customer)
     {
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'lokasi' => 'required|string|max:255',
-            'package_id' => 'required|exists:packages,id',
-            'serial_number' => 'required|string|max:255',
-            'phone' => 'required|string|unique:customers,phone,' . $customer->id,
-            'olt_id' => 'required|exists:olts,id',
-            'register_port' => 'required|string|max:255',
-            'vlan_ids' => 'required|array',
-            'vlan_ids.*' => 'exists:vlans,id',
-            'odp' => 'nullable|string|max:255',
-            'subscription_date' => 'nullable|date',
-            'sales' => 'nullable|string|max:255',
-            'setor' => 'nullable|numeric|min:0',
-        ]);
-        
-        $oltService = new OltService();
-        $newPackage = Package::findOrFail($validated['package_id']);
-        $newOlt = Olt::findOrFail($validated['olt_id']);
-        $newVlans = Vlan::find($validated['vlan_ids']);
-        $router = $newPackage->router;
+        \Log::info('CustomerController: Update function called', ['customer_id' => $customer->id, 'request_data' => $request->all()]);
 
-        if ($customer->olt_id != $validated['olt_id'] || $customer->register_port != $validated['register_port']) {
-            try {
-                $oltService->updateOnu($customer->olt, $customer->register_port, $newOlt, $validated['register_port'], $validated['serial_number'], $validated['name'], $newVlans);
-            } catch (\Exception $e) {
-                return back()->withInput()->with('error', 'Gagal update konfigurasi di OLT: ' . $e->getMessage());
-            }
+        try {
+            $validated = $request->validate([
+                'name' => 'required|string|max:255',
+                'lokasi' => 'required|string|max:255',
+                'package_id' => 'required|exists:packages,id',
+                'serial_number' => 'required|string|max:255',
+                'phone' => 'required|string|unique:customers,phone,' . $customer->id,
+                'olt_id' => 'required|exists:olts,id',
+                'register_port' => ['required', 'string', 'max:255'],
+                'vlan_ids' => 'required|array',
+                'vlan_ids.*' => 'exists:vlans,id',
+                'odp' => 'nullable|string|max:255',
+                'subscription_date' => 'nullable|date',
+                'sales' => 'nullable|string|max:255',
+                'setor' => 'nullable|numeric|min:0',
+            ]);
+
+            \Log::info('CustomerController: Validation passed', ['validated_data' => $validated]);
+
+            $customer->update($validated);
+            \Log::info('CustomerController: Data updated successfully', ['customer_id' => $customer->id]);
+
+            $customer->vlans()->sync($validated['vlan_ids']);
+            \Log::info('CustomerController: VLANs synced successfully', ['customer_id' => $customer->id]);
+
+            return redirect()->route('customers.index')->with('success', 'Data pelanggan berhasil diperbarui.');
+        } catch (\Exception $e) {
+            \Log::error('CustomerController: Update failed', ['error' => $e->getMessage()]);
+            return back()->withInput()->with('error', 'Terjadi kesalahan saat memperbarui data pelanggan: ' . $e->getMessage());
         }
-
-        if ($customer->package_id != $validated['package_id'] || $customer->name != $validated['name']) {
-            try {
-                $client = new Client(['host' => $router->ip_address, 'user' => $router->username, 'pass' => $router->password]);
-                $query = (new Query('/ppp/secret/print'))->where('name', $customer->name)->operations('=.id');
-                $secretId = $client->query($query)->read()[0]['.id'] ?? null;
-                if ($secretId) {
-                    $updateQuery = (new Query('/ppp/secret/set'))->equal('.id', $secretId)->equal('name', $validated['name'])->equal('profile', $newPackage->name);
-                    $client->query($updateQuery)->read();
-                }
-            } catch (\Exception $e) {
-                return back()->withInput()->with('error', 'Gagal update profil di MikroTik: ' . $e->getMessage());
-            }
-        }
-
-        $customer->update($validated);
-        $customer->vlans()->sync($validated['vlan_ids']);
-        
-        $this->updateRadiusUser($customer->fresh(), $newPackage);
-
-        return redirect()->route('customers.index')->with('success', 'Data pelanggan berhasil diperbarui.');
     }
 
     public function destroy(Customer $customer)

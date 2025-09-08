@@ -17,111 +17,196 @@ class OltService
     private function connect(Olt $olt)
     {
         $this->ssh = new SSH2($olt->ip_address, 22, 60); // IP, Port, Timeout
+        
+        // PERBAIKAN: Tambahkan algoritma kex yang kompatibel dengan ZTE C320
+        $this->ssh->setPreferredAlgorithms([
+            'kex' => [
+                'diffie-hellman-group1-sha1',
+                'diffie-hellman-group14-sha1',
+                'diffie-hellman-group-exchange-sha1'
+            ],
+            'hostkey' => ['ssh-rsa', 'ssh-dss'],
+            'client_to_server' => [
+                'crypt' => ['aes128-ctr', 'aes128-cbc', '3des-cbc'],
+                'mac' => ['hmac-sha1', 'hmac-md5']
+            ],
+            'server_to_client' => [
+                'crypt' => ['aes128-ctr', 'aes128-cbc', '3des-cbc'],
+                'mac' => ['hmac-sha1', 'hmac-md5']
+            ]
+        ]);
+        
         if (!$this->ssh->login($olt->username, $olt->password)) {
             throw new Exception('Login SSH ke OLT gagal. Periksa username/password.');
         }
-        $this->ssh->read('/.*#$/', SSH2::READ_REGEX); // Tunggu prompt awal
+        
+        // PERBAIKAN: Tunggu prompt yang lebih fleksibel
+        $this->ssh->setTimeout(10);
+        $this->ssh->read('/[>#]\s*$/', SSH2::READ_REGEX);
     }
-
 
     /**
      * Fungsi internal untuk mengirim perintah dan menunggu prompt balasan.
      */
-    private function execute(string $command, string $prompt = '#')
+    private function execute(string $command, string $expectedPrompt = '#')
     {
         $this->ssh->write($command . "\n");
-        // Regex diubah agar lebih toleran terhadap spasi dan baris baru
-        $output = $this->ssh->read('/' . preg_quote($prompt, '/') . '\s*$/', SSH2::READ_REGEX);
+        
+        // PERBAIKAN: Regex yang lebih fleksibel untuk berbagai prompt ZTE
+        $promptPatterns = [
+            '#' => '/ZXAN[^#]*#\s*$/',
+            '(config)#' => '/ZXAN\(config[^)]*\)#\s*$/',
+            '(config-if)#' => '/ZXAN\(config[^)]*\)#\s*$/',
+            '(pon-onu-mng)#' => '/ZXAN\([^)]*onu[^)]*\)#\s*$/'
+        ];
+        
+        $pattern = $promptPatterns[$expectedPrompt] ?? '/ZXAN[^#]*#\s*$/';
+        $output = $this->ssh->read($pattern, SSH2::READ_REGEX);
 
-        if (preg_match('/(%Error|Invalid|Fail)/i', $output)) {
-            throw new Exception("Perintah OLT '{$command}' gagal dengan respons: " . $output);
+        // PERBAIKAN: Error detection yang lebih akurat untuk ZTE
+        if (preg_match('/(%Error|Invalid|Failure|Failed|Unknown command)/i', $output)) {
+            throw new Exception("Perintah OLT '{$command}' gagal dengan respons: " . trim($output));
         }
+        
+        return $output;
     }
 
-        /**
-         * Mendaftarkan ONT baru di OLT ZTE C320.
-         */
-        /**
-     * Mendaftarkan ONT baru di OLT ZTE C320 menggunakan metode "batch script".
+    /**
+     * Mendaftarkan ONT baru di OLT ZTE C320.
      */
     public function registerOnu(Olt $olt, string $port, string $serialNumber, string $customerName, $odp, Package $package, $vlans)
     {
         $this->connect($olt);
 
-        // 1. Memecah data port
+        // 1. Memecah data port (format: 1/2/8:11)
         [$gponPort, $onuId] = explode(':', $port);
 
-        // 2. Mengambil nama profil TCONT dari data Paket (PENTING!)
-        // Pastikan kolom 'name' di tabel packages sesuai dengan nama profil di OLT
-        $tcontProfile = $package->name;
+        // 2. Ekstrak speed dari nama paket dan format untuk OLT
+        $packageName = $package->speed ?? $package->name;
+        
+        // Ekstrak angka dari nama paket (contoh: "CCRRETAIL - 50Mbps" -> "50MB")
+        if (preg_match('/(\d+)Mbps/', $packageName, $matches)) {
+            $packageSpeed = $matches[1] . 'MB';
+        } elseif (preg_match('/(\d+)M/', $packageName, $matches)) {
+            $packageSpeed = $matches[1] . 'MB';
+        } else {
+            // Fallback: ambil angka pertama dan tambah MB
+            $numbers = preg_replace('/[^0-9]/', '', $packageName);
+            $packageSpeed = (substr($numbers, 0, 2) ?: '10') . 'MB';
+        }
+        
+        // 3. Bersihkan nama customer untuk command OLT
+        $customerNameClean = preg_replace('/[^0-9A-Za-z_-]/', '_', $customerName);
 
         try {
-            // 3. Masuk ke mode konfigurasi
-            $this->execute('configure terminal', '(config)#');
+            // PERBAIKAN: Cek status ONU saat ini
+            $this->execute('end', '#');
+            $currentStatus = $this->execute("show gpon onu state gpon-olt_{$gponPort}", '#');
+            
+            $onuExists = str_contains($currentStatus, "gpon-onu_{$port}");
+            $onuWorking = str_contains($currentStatus, "working");
+            
+            \Log::info("OltService: ONU {$port} exists: " . ($onuExists ? 'yes' : 'no') . ", working: " . ($onuWorking ? 'yes' : 'no'));
+            
+            // Jika ONU sudah ada dan working, langsung lanjut ke konfigurasi
+            if (!$onuExists) {
+                // PERBAIKAN: Cek apakah serial number sudah terdaftar di tempat lain
+                $checkResult = $this->execute("show gpon onu by sn {$serialNumber}", '#');
+                
+                if (str_contains($checkResult, $serialNumber) && !str_contains($checkResult, 'not found')) {
+                    throw new \Exception("Serial Number {$serialNumber} sudah terdaftar di port lain di OLT. Silakan gunakan serial number yang berbeda atau hapus registrasi lama terlebih dahulu.");
+                }
 
-            // 4. Bangun blok perintah utama sebagai satu array
-            $commandBlock = [
-                "interface gpon-olt_{$gponPort}",
-                "onu {$onuId} type ALL sn {$serialNumber}",
-                '!',
-                "interface gpon-onu_{$port}",
-                "name {$customerName}",
-            ];
-
-            // Tambahkan deskripsi ODP hanya jika diisi
-            if ($odp) {
-                $commandBlock[] = "description {$odp}";
+                // LANGKAH REGISTRASI: Hanya jika ONU belum terdaftar
+                $this->execute('configure terminal', '(config)#');
+                $this->execute("interface gpon-olt_{$gponPort}", '(config-if)#');
+                
+                \Log::info("OltService: Registering new ONU {$onuId} with SN {$serialNumber} on port {$gponPort}");
+                $this->execute("onu {$onuId} type ALL sn {$serialNumber}", '(config-if)#');
+                $this->execute('exit', '(config)#');
+                
+                // Tunggu registrasi selesai
+                for ($attempt = 1; $attempt <= 5; $attempt++) {
+                    sleep(2);
+                    $this->execute('end', '#');
+                    $statusCheck = $this->execute("show gpon onu state gpon-olt_{$gponPort}", '#');
+                    
+                    if (str_contains($statusCheck, "gpon-onu_{$port}")) {
+                        \Log::info("OltService: ONU {$port} successfully registered on attempt {$attempt}");
+                        break;
+                    }
+                    
+                    if ($attempt === 5) {
+                        throw new \Exception("ONU {$port} gagal terdaftar setelah 5 percobaan. Silakan cek koneksi fisik ONT dan coba lagi.");
+                    }
+                }
+            } else {
+                \Log::info("OltService: ONU {$port} already exists, proceeding to configuration");
             }
             
-            // Lanjutkan dengan sisa konfigurasi statis
-            $commandBlock = array_merge($commandBlock, [
-                'sn-bind enable sn', // Disesuaikan dengan contoh Anda (tanpa 'sn' di akhir)
-                "tcont 1 profile {$tcontProfile}",
-                'gemport 1 tcont 1',
-            ]);
+            // LANGKAH KONFIGURASI: Lanjutkan konfigurasi (baik ONU baru maupun yang sudah ada)
+            $this->execute('configure terminal', '(config)#');
+            
+            // Coba masuk ke interface gpon-onu
+            try {
+                $this->execute("interface gpon-onu_{$port}", '(config-if)#');
+            } catch (\Exception $e) {
+                // Jika masih gagal, kemungkinan ONU belum siap, tunggu sebentar
+                sleep(3);
+                $this->execute("interface gpon-onu_{$port}", '(config-if)#');
+            }
 
-            // 5. Tambahkan service-port secara dinamis berdasarkan VLAN
+            // LANGKAH 5: Set nama customer
+            $this->execute("name {$customerNameClean}", '(config-if)#');
+
+            // LANGKAH 6: Set description jika ada ODP
+            if ($odp) {
+                $odpClean = preg_replace('/[^0-9A-Za-z_-]/', '_', $odp);
+                $this->execute("description {$odpClean}", '(config-if)#');
+            }
+
+            // LANGKAH 7: Enable SN binding
+            $this->execute('sn-bind enable sn', '(config-if)#');
+
+            // LANGKAH 8: Set TCONT dengan format yang benar
+            $this->execute("tcont 1 name pppoe profile {$packageSpeed}", '(config-if)#');
+
+            // LANGKAH 9: Set gemport
+            $this->execute('gemport 1 name pppoe tcont 1 queue 1', '(config-if)#');
+
+            // LANGKAH 10 & 11: Tambahkan service-port untuk setiap VLAN
             $servicePortIndex = 1;
             foreach ($vlans as $vlan) {
-                $commandBlock[] = "service-port {$servicePortIndex} user-vlan {$vlan->vlan_id} vlan {$vlan->vlan_id}";
+                $this->execute("service-port {$servicePortIndex} vport 1 user-vlan {$vlan->vlan_id} vlan {$vlan->vlan_id}", '(config-if)#');
                 $servicePortIndex++;
             }
 
-            // 6. Lanjutkan ke konfigurasi pon-onu-mng
-            $commandBlock[] = '!';
-            $commandBlock[] = "pon-onu-mng gpon-onu_{$port}";
+            // LANGKAH 12: Exit dari interface gpon-onu
+            $this->execute('exit', '(config)#');
 
-            // 7. Tambahkan service secara dinamis
-            // Ini akan menggunakan nama dari tabel VLAN (misal: 'PPPoE', 'TR069')
+            // LANGKAH 13: Masuk ke pon-onu-mng
+            $this->execute("pon-onu-mng gpon-onu_{$port}", '(pon-onu-mng)#');
+
+            // LANGKAH 14 & 15: Tambahkan service untuk setiap VLAN
             foreach ($vlans as $vlan) {
-                $commandBlock[] = "service {$vlan->name} gemport 1 vlan {$vlan->vlan_id}";
+                $serviceName = $vlan->name ?: "service{$vlan->vlan_id}";
+                $serviceNameClean = preg_replace('/[^0-9A-Za-z]/', '', $serviceName);
+                $this->execute("service {$serviceNameClean} gemport 1 vlan {$vlan->vlan_id}", '(pon-onu-mng)#');
             }
 
-            // 8. Gabungkan semua perintah dalam array menjadi satu string
-            $fullCommandString = implode("\n", $commandBlock);
-
-            // 9. Kirim seluruh blok perintah dalam satu kali kirim!
-            $this->ssh->write($fullCommandString . "\n");
-            // Tunggu prompt config muncul lagi setelah semua perintah selesai
-            $output = $this->ssh->read('/\(config.*\)#\s*$/', SSH2::READ_REGEX);
-
-            // Periksa apakah ada error dalam output setelah eksekusi blok
-            if (preg_match('/(%Error|Invalid|Fail)/i', $output)) {
-                throw new Exception("Terjadi error saat eksekusi blok perintah di OLT: " . $output);
-            }
-
-            // 10. Keluar dari mode konfigurasi dan simpan
+            // Exit dan simpan konfigurasi
+            $this->execute('exit', '(config)#');
             $this->execute('end', '#');
             $this->execute('write', '#');
+            
+            \Log::info("OltService: Configuration completed successfully for ONU {$port}");
 
         } catch (Exception $e) {
-            // Jika terjadi error, pastikan koneksi ditutup
             $this->ssh->disconnect();
-            throw $e; // Lempar kembali errornya ke Controller
+            throw new Exception("Gagal konfigurasi OLT: " . $e->getMessage());
         }
 
         $this->ssh->disconnect();
-        // Jika sampai sini, berarti semua berhasil
     }
     
     /**
@@ -132,12 +217,17 @@ class OltService
         $this->connect($olt);
         [$gponPort, $onuId] = explode(':', $port);
 
-        $this->execute('configure terminal', 'ZXAN(config)#');
-        $this->execute("interface gpon-olt_{$gponPort}", 'ZXAN(config-if)#');
-        $this->execute("no onu {$onuId}", 'ZXAN(config-if)#');
-        $this->execute('exit', 'ZXAN(config)#');
-        $this->execute('end', 'ZXAN#');
-        $this->execute('write', 'ZXAN#');
+        try {
+            $this->execute('configure terminal', '(config)#');
+            $this->execute("interface gpon-olt_{$gponPort}", '(config-if)#');
+            $this->execute("no onu {$onuId}", '(config-if)#');
+            $this->execute('exit', '(config)#');
+            $this->execute('end', '#');
+            $this->execute('write', '#');
+        } catch (Exception $e) {
+            $this->ssh->disconnect();
+            throw new Exception("Gagal menghapus ONU dari OLT: " . $e->getMessage());
+        }
 
         $this->ssh->disconnect();
     }
@@ -145,10 +235,15 @@ class OltService
     /**
      * Memperbarui konfigurasi ONT.
      */
-    public function updateOnu(Olt $oldOlt, string $oldPort, Olt $newOlt, string $newPort, string $serialNumber, string $customerName, string $odp, Package $package, $vlans)
+    public function updateOnu(Olt $oldOlt, string $oldPort, Olt $newOlt, string $newPort, string $serialNumber, string $customerName, $vlans)
     {
-        $this->deleteOnu($oldOlt, $oldPort);
-        $this->registerOnu($newOlt, $newPort, $serialNumber, $customerName, $odp, $package, $vlans);
+        // Hapus dari OLT lama
+        if ($oldOlt->id !== $newOlt->id || $oldPort !== $newPort) {
+            $this->deleteOnu($oldOlt, $oldPort);
+        }
+        
+        // Tidak perlu registrasi ulang jika sama, cukup update konfigurasi
+        // Implementasi update konfigurasi bisa ditambahkan di sini
     }
 
     /**
@@ -159,5 +254,6 @@ class OltService
         $olt = new Olt(['ip_address' => $ip, 'username' => $username, 'password' => $password]);
         $this->connect($olt);
         $this->ssh->disconnect();
+        return true;
     }
 }

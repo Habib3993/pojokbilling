@@ -60,7 +60,7 @@ class DashboardController extends Controller
         $revenueSeries = [];
 
         // Loop untuk 3 bulan terakhir (termasuk bulan ini) untuk mendapatkan data per bulan
-        for ($i = 2; $i >= 0; $i--) {
+        for ($i = 3; $i >= 0; $i--) {
             $date = Carbon::now()->subMonths($i);
             $monthName = $date->format('M Y'); // Format: Jul 2025
 
@@ -104,17 +104,110 @@ class DashboardController extends Controller
             'series' => $salesData->pluck('total_pelanggan')->toArray(),
         ];
         
+        // =================================================================
+        // 4: EXPENSES (EKSPANSI) - 4 BULAN TERAKHIR (KODE BARU)
+        // =================================================================
+        
+        // Query dasar untuk pengeluaran ekspansi, termasuk filter lokasi untuk admin biasa
+        $baseExpenseQuery = Transaction::query()->where('status', 'EKSPANSI');
+        if (!$user->hasRole('superadmin')) {
+            $baseExpenseQuery->where('location_id', $user->location_id);
+        }
+
+        $expensesLabels = [];
+        $expensesSeries = [];
+
+        // Loop untuk 4 bulan terakhir (termasuk bulan ini)
+        for ($i = 3; $i >= 0; $i--) {
+            $date = Carbon::now()->subMonths($i);
+            $monthName = $date->format('M Y');
+
+            $queryForMonth = clone $baseRevenueQuery;
+
+            $monthlyExpense = $queryForMonth
+                ->whereYear('date', $date->year)
+                ->whereMonth('date', $date->month)
+                ->where('status', 'EKSPANSI')
+                ->sum('kredit'); // Menjumlahkan kolom 'kredit' untuk pengeluaran
+
+            $expensesLabels[] = $monthName;
+            $expensesSeries[] = $monthlyExpense;
+        }
+
+        // Calculate percentage for expenses
+        $lastMonthExpense = $expensesSeries[count($expensesSeries) - 2] ?? 0; // Previous month
+        $currentMonthExpense = $expensesSeries[count($expensesSeries) - 1] ?? 0; // Current month
+        $expensePercentage = $lastMonthExpense > 0 ? round((($currentMonthExpense - $lastMonthExpense) / $lastMonthExpense) * 100) : 0;
+        $expenses['percentage'] = $expensePercentage;
+
+        $expenses = [
+            'labels' => $expensesLabels,
+            'series' => $expensesSeries
+        ];
 
         // =================================================================
-        // LANGSUNG KIRIM DATA TOTAL USERS, ABAIKAN SEMUA BAGIAN LAIN
+        // 5: GROWTH (PSB) - 4 BULAN TERAKHIR (KODE BARU)
+        // =================================================================
+        
+        // Query dasar untuk customer, termasuk filter lokasi
+        $baseGrowthQuery = Customer::query();
+        if (!$user->hasRole('superadmin')) {
+            $baseGrowthQuery->where('location_id', $user->location_id);
+        }
+
+        $growthSeries = [];
+        $growthLabels = [];
+
+        // Loop untuk 4 bulan terakhir
+        for ($i = 3; $i >= 0; $i--) {
+            $date = \Carbon\Carbon::now()->subMonths($i);
+            $growthLabels[] = $date->format('M Y'); // Label: Sep 2025
+
+            // Kloning query agar tidak menimpa
+            $queryForMonth = clone $baseGrowthQuery;
+
+            $monthlyPsb = $queryForMonth
+                ->whereYear('subscription_date', $date->year)
+                ->whereMonth('subscription_date', $date->month)
+                ->count(); // Hitung jumlah customer baru di bulan tersebut
+
+            $growthSeries[] = $monthlyPsb;
+        }
+
+        // Calculate percentage for growth
+        $lastMonthGrowth = $growthSeries[count($growthSeries) - 2] ?? 0; // Previous month
+        $currentMonthGrowth = $growthSeries[count($growthSeries) - 1] ?? 0; // Current month
+        $growthPercentage = $lastMonthGrowth > 0 ? round((($currentMonthGrowth - $lastMonthGrowth) / $lastMonthGrowth) * 100) : 0;
+        $growth['percentage'] = $growthPercentage;
+
+        // Ambil data PSB bulan ini untuk ditampilkan sebagai angka utama
+        $currentMonthPsb = end($growthSeries);
+
+        // Ensure growth data is valid
+        if (empty($growthSeries)) {
+            $growthSeries = [0]; // Default to zero if no data is available
+        }
+        if (empty($growthLabels)) {
+            $growthLabels = ['No Data']; // Default label if no data is available
+        }
+
+        $growth = [
+            'total'      => number_format($currentMonthPsb),
+            'percentage' => $growthPercentage,
+            'series'     => $growthSeries,
+            'labels'     => $growthLabels
+        ];
+
+        // =================================================================
+        // KIRIM SEMUA DATA KE FRONTEND
         // =================================================================
         return response()->json([
             'totalUsers'    => $activeUsers,
             'revenue'         => $revenue,
             'sales'         => $salesPerformance,
+            'expenses'     => $expenses,
+            'growth'       => $growth,
             // Kita buat data dummy untuk card lain agar tidak error di frontend
-            'expenses'      => ['total' => 'Rp 0', 'percentage' => 0, 'series' => []],
-            'growth'        => ['total' => '0', 'percentage' => 0, 'series' => [0]],
             'customMetric'  => ['count' => 0, 'percentage' => 0, 'series' => []],
         ]);
     }

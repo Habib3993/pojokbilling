@@ -85,6 +85,73 @@
             .leaflet-draw-toolbar a {
                 transform: none !important;
             }
+            
+            /* Custom SweetAlert2 Styling */
+            .swal-custom-container .swal2-popup {
+                border-radius: 12px;
+                box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+                margin-top: 5vh !important;
+                max-height: 80vh !important;
+                overflow-y: auto !important;
+            }
+            
+            .swal-form-container input:focus,
+            .swal-form-container select:focus,
+            .swal-form-container textarea:focus {
+                outline: none;
+                border-color: #3b82f6;
+                box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+            }
+            
+            .swal-form-container .swal-field-group label {
+                font-family: system-ui, -apple-system, sans-serif;
+            }
+            
+            /* Popup styling yang lebih baik */
+            .popup-edit-btn:hover {
+                background-color: #2563eb !important;
+                transform: translateY(-1px);
+                box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+            }
+            
+            .leaflet-popup-content {
+                line-height: 1.5;
+            }
+
+            /* Color grid styling untuk popup */
+            .color-grid label {
+                display: block;
+            }
+            
+            .color-grid .w-8 {
+                cursor: pointer;
+                transition: all 0.2s ease;
+            }
+            
+            .color-grid .w-8:hover {
+                transform: scale(1.1);
+                border-color: #374151 !important;
+            }
+            
+            .swal-form-container .color-grid {
+                max-width: 320px;
+            }
+            
+            /* Styling untuk tooltip panjang polyline */
+            .polyline-length-tooltip {
+                background-color: rgba(0, 0, 0, 0.7) !important;
+                border: none !important;
+                color: white !important;
+                font-size: 11px !important;
+                font-weight: 600 !important;
+                padding: 4px 8px !important;
+                border-radius: 4px !important;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.3) !important;
+            }
+            
+            .polyline-length-tooltip:before {
+                display: none !important;
+            }
         </style>
     @endpush
 
@@ -136,24 +203,28 @@
                 // ===================================================================
                 const map = L.map('map').setView([-7.5489, 112.4480], 13);
                 
-                // Definisi berbagai tile layers
+                // Definisi berbagai tile layers dengan maxZoom tinggi
                 const baseLayers = {
-                    "Satellite": L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-                        maxZoom: 19,
+                    "Satellite HD": L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+                        maxZoom: 22,
+                        attribution: '© Google Satellite'
+                    }),
+                    "Satellite (Esri)": L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                        maxZoom: 20,
                         attribution: '© Esri'
                     }),
                     "OpenStreetMap": L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                         maxZoom: 19,
                         attribution: '© OpenStreetMap'
                     }),
-                    "Hybrid": L.layerGroup([
-                        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-                            maxZoom: 19,
-                            attribution: '© Esri'
+                    "Hybrid (Google)": L.layerGroup([
+                        L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+                            maxZoom: 22,
+                            attribution: '© Google'
                         }),
-                        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
-                            maxZoom: 19,
-                            attribution: '© Esri'
+                        L.tileLayer('https://mt1.google.com/vt/lyrs=h&x={x}&y={y}&z={z}', {
+                            maxZoom: 22,
+                            attribution: '© Google'
                         })
                     ]),
                     "Terrain": L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
@@ -162,8 +233,8 @@
                     })
                 };
 
-                // Set satellite sebagai layer default
-                baseLayers["Satellite"].addTo(map);
+                // Set Google Satellite HD sebagai layer default
+                baseLayers["Satellite HD"].addTo(map);
                 
                 // Tambahkan layer control untuk switch antar layer
                 L.control.layers(baseLayers).addTo(map);
@@ -180,6 +251,147 @@
                 // ===================================================================
                 // BAGIAN FUNGSI-FUNGSI BANTUAN
                 // ===================================================================
+
+                // Fungsi helper untuk menghapus data dari array lokal
+                function removeDataFromLocalArrays(id, type) {
+                    if (type === 'point') {
+                        // Hapus dari setiap grup layer
+                        allLayerGroups.forEach(group => {
+                            if (group.map_points) {
+                                group.map_points = group.map_points.filter(point => point.id !== id);
+                            }
+                        });
+                    } else if (type === 'polyline') {
+                        // Hapus dari array polylines
+                        const index = allPolylines.findIndex(line => line.id === id);
+                        if (index > -1) {
+                            allPolylines.splice(index, 1);
+                        }
+                    }
+                }
+
+                // Fungsi untuk membuat HTML form yang konsisten
+                function createFormHTML(fields, title = '') {
+                    let formHTML = `<div class="swal-form-container" style="text-align: left; padding: 1.2em; max-width: 420px;">`;
+                    
+                    if (title) {
+                        formHTML += `<h3 style="margin: 0 0 1.2em 0; color: #374151; font-weight: 600;">${title}</h3>`;
+                    }
+                    
+                    fields.forEach(field => {
+                        formHTML += `<div class="swal-field-group" style="margin-bottom: 1rem;">`;
+                        formHTML += `<label for="${field.id}" style="display: block; margin-bottom: 0.4rem; font-weight: 500; color: #374151; font-size: 0.875rem;">${field.label}${field.required ? ' <span style="color: #dc2626;">*</span>' : ''}</label>`;
+                        
+                        if (field.type === 'select') {
+                            formHTML += `<select id="${field.id}" class="swal2-select" style="width: 100%; padding: 0.6rem; border: 1px solid #d1d5db; border-radius: 0.375rem; font-size: 0.875rem;">`;
+                            if (field.placeholder) {
+                                formHTML += `<option value="">${field.placeholder}</option>`;
+                            }
+                            formHTML += field.options;
+                            formHTML += `</select>`;
+                        } else if (field.type === 'textarea') {
+                            formHTML += `<textarea id="${field.id}" class="swal2-textarea" placeholder="${field.placeholder || ''}" style="width: 100%; min-height: 70px; padding: 0.6rem; border: 1px solid #d1d5db; border-radius: 0.375rem; font-size: 0.875rem; resize: vertical;">${field.value || ''}</textarea>`;
+                        } else if (field.type === 'color-dropdown') {
+                            const colors = [
+                                '#000000', '#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#FF00FF', '#00FFFF', '#C0C0C0',
+                                '#808080', '#800000', '#008000', '#000080', '#808000', '#800080', '#008080', '#FFFFFF',
+                                '#FFA500', '#A52A2A', '#DDA0DD', '#98FB98', '#F0E68C', '#87CEEB', '#D2691E', '#FF69B4'
+                            ];
+                            formHTML += `<div class="flex items-center gap-3">
+                                <div id="${field.id}-preview" class="w-8 h-6 rounded border-2 border-gray-300" style="background-color: ${field.value || '#e83e58'}"></div>
+                                <div class="relative flex-1">
+                                    <button type="button" id="${field.id}-btn" class="w-full inline-flex items-center justify-between px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                        <span>Pilih Warna</span>
+                                        <i class="fa fa-chevron-down ml-2"></i>
+                                    </button>
+                                    <div id="${field.id}-dropdown" class="hidden absolute z-50 mt-1 w-full bg-white rounded-md shadow-lg border border-gray-200 p-2 max-h-40 overflow-y-auto">
+                                        <div class="grid grid-cols-6 gap-1">`;
+                            colors.forEach(color => {
+                                formHTML += `<button type="button" class="color-option-btn w-6 h-6 rounded border border-gray-300 hover:border-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500" 
+                                            style="background-color: ${color}" 
+                                            data-color="${color}" 
+                                            data-target="${field.id}"></button>`;
+                            });
+                            formHTML += `</div></div></div></div>`;
+                            formHTML += `<input type="hidden" id="${field.id}" value="${field.value || '#e83e58'}">`;
+                        } else {
+                            formHTML += `<input type="${field.type || 'text'}" id="${field.id}" class="swal2-input" placeholder="${field.placeholder || ''}" value="${field.value || ''}" style="width: 100%; padding: 0.6rem; border: 1px solid #d1d5db; border-radius: 0.375rem; font-size: 0.875rem;">`;
+                        }
+                        formHTML += `</div>`;
+                    });
+                    
+                    formHTML += `</div>`;
+                    
+                    // Add event listeners after DOM is inserted
+                    setTimeout(() => {
+                        fields.forEach(field => {
+                            if (field.type === 'color-dropdown') {
+                                setupColorDropdown(field.id);
+                            }
+                        });
+                    }, 100);
+                    
+                    return formHTML;
+                }
+
+                // Fungsi untuk setup color dropdown
+                function setupColorDropdown(fieldId) {
+                    const button = document.getElementById(`${fieldId}-btn`);
+                    const dropdown = document.getElementById(`${fieldId}-dropdown`);
+                    const input = document.getElementById(fieldId);
+                    const preview = document.getElementById(`${fieldId}-preview`);
+
+                    if (button && dropdown) {
+                        button.addEventListener('click', function(e) {
+                            e.preventDefault();
+                            dropdown.classList.toggle('hidden');
+                        });
+
+                        // Close dropdown when clicking outside
+                        document.addEventListener('click', function(e) {
+                            if (!button.contains(e.target) && !dropdown.contains(e.target)) {
+                                dropdown.classList.add('hidden');
+                            }
+                        });
+
+                        // Handle color selection
+                        dropdown.querySelectorAll('.color-option-btn').forEach(btn => {
+                            btn.addEventListener('click', function(e) {
+                                e.preventDefault();
+                                const selectedColor = this.getAttribute('data-color');
+                                input.value = selectedColor;
+                                preview.style.backgroundColor = selectedColor;
+                                dropdown.classList.add('hidden');
+                            });
+                        });
+                    }
+                }
+
+                // Fungsi untuk menangani pemilihan warna
+                window.selectColor = function(fieldId, color) {
+                    document.getElementById(fieldId).value = color;
+                    // Update visual selection
+                    const colorGrid = document.querySelector(`#${fieldId}`).closest('.swal-field-group').querySelector('.color-grid');
+                    colorGrid.querySelectorAll('.ring-2').forEach(el => el.classList.remove('ring-2', 'ring-blue-500'));
+                    event.target.classList.add('ring-2', 'ring-blue-500');
+                }
+
+                // Fungsi untuk menghitung panjang polyline
+                function calculatePolylineLength(polyline) {
+                    const latlngs = polyline.getLatLngs();
+                    let totalDistance = 0;
+                    
+                    for (let i = 0; i < latlngs.length - 1; i++) {
+                        totalDistance += latlngs[i].distanceTo(latlngs[i + 1]);
+                    }
+                    
+                    // Konversi ke format yang sesuai
+                    if (totalDistance < 1000) {
+                        return `${Math.round(totalDistance)} m`;
+                    } else {
+                        return `${(totalDistance / 1000).toFixed(2)} km`;
+                    }
+                }
 
                 // Fungsi terpusat untuk menghapus layer dari server
                 function deleteLayerFromServer(type, id) {
@@ -313,40 +525,77 @@
                     }
                     if (!currentData) return;
 
+                    const fields = [
+                        {
+                            id: 'swal-edit-name',
+                            label: 'Nama',
+                            type: 'text',
+                            value: currentData.name,
+                            required: true,
+                            placeholder: type === 'point' ? 'Contoh: ODP-01' : 'Contoh: Kabel Feeder Utama'
+                        }
+                    ];
+
+                    // Tambahkan field warna hanya untuk polyline
+                    if (type === 'polyline') {
+                        fields.push({
+                            id: 'swal-edit-color',
+                            label: 'Warna Kabel',
+                            type: 'color-dropdown',
+                            value: currentData.color || '#e83e58'
+                        });
+                    }
+
+                    fields.push({
+                        id: 'swal-edit-description',
+                        label: 'Deskripsi',
+                        type: 'textarea',
+                        value: currentData.description || '',
+                        placeholder: 'Deskripsi detail (opsional)'
+                    });
+
                     Swal.fire({
                         title: `Edit ${type === 'point' ? 'Titik' : 'Kabel'}`,
-                        html: `
-                            <div style="text-align: left; padding: 1em;">
-                                <label for="swal-edit-name">Nama:</label>
-                                <input id="swal-edit-name" class="swal2-input" value="${currentData.name}">
-                                
-                                <label for="swal-edit-description" style="margin-top:1rem; display:block;">Deskripsi:</label>
-                                <textarea id="swal-edit-description" class="swal2-textarea">${currentData.description || ''}</textarea>
-                            </div>`,
+                        html: createFormHTML(fields),
                         showDenyButton: true,
                         showCancelButton: true,
-                        confirmButtonText: 'Simpan',
-                        denyButtonText: `<i class="fa fa-trash"></i> Hapus`,
-                        denyButtonColor: '#d33',
+                        confirmButtonText: '<i class="fa fa-save"></i> Simpan',
+                        denyButtonText: '<i class="fa fa-trash"></i> Hapus',
+                        cancelButtonText: '<i class="fa fa-times"></i> Batal',
+                        confirmButtonColor: '#3b82f6',
+                        denyButtonColor: '#dc2626',
+                        cancelButtonColor: '#6b7280',
+                        width: '400px',
                         focusConfirm: false,
+                        customClass: {
+                            container: 'swal-custom-container'
+                        },
                         preConfirm: () => {
                             // Validasi form sebelum mengirim
-                            const name = document.getElementById('swal-edit-name').value;
+                            const name = document.getElementById('swal-edit-name').value.trim();
                             if (!name) {
                                 Swal.showValidationMessage(`Nama tidak boleh kosong`);
                                 return false;
                             }
-                            return {
+                            
+                            const updatedData = {
                                 name: name,
-                                description: document.getElementById('swal-edit-description').value,
+                                description: document.getElementById('swal-edit-description').value.trim(),
                             };
+
+                            // Tambahkan color untuk polyline
+                            if (type === 'polyline') {
+                                updatedData.color = document.getElementById('swal-edit-color').value;
+                            }
+
+                            return updatedData;
                         }
                     }).then((result) => {
                         if (result.isConfirmed) { // Jika klik "Simpan"
                             const updatedData = result.value;
                             
                             fetch(`/inventory-map/${type}s/${id}`, {
-                                method: 'PATCH', // Menggunakan PATCH untuk update parsial
+                                method: 'PATCH',
                                 headers: { 
                                     'Content-Type': 'application/json',
                                     'X-CSRF-TOKEN': '{{ csrf_token() }}'
@@ -356,28 +605,38 @@
                             .then(res => res.json().then(data => ({ status: res.status, body: data })))
                             .then(obj => {
                                 if (obj.status >= 200 && obj.status < 300 && obj.body.success) {
-                                    // --- LOGIKA BARU TANPA RELOAD ---
                                     const dataFromServer = obj.body.point || obj.body.polyline;
-
-                                    // 1. Update data di variabel JavaScript lokal
                                     Object.assign(currentData, dataFromServer);
-
-                                    // 2. Update konten popup di peta
-                                    updatePopupContent(layer, type, currentData);
                                     
-                                    // 3. Bangun ulang sidebar untuk update nama item
+                                    // Update warna polyline di peta jika ada perubahan warna
+                                    if (type === 'polyline' && updatedData.color) {
+                                        layer.setStyle({ color: updatedData.color });
+                                    }
+                                    
+                                    updatePopupContent(layer, type, currentData);
                                     buildSidebar();
-
-                                    // 4. Tampilkan notifikasi sukses
-                                    Swal.fire('Tersimpan!', 'Data berhasil diperbarui.', 'success');
+                                    Swal.fire({
+                                        icon: 'success',
+                                        title: 'Tersimpan!',
+                                        text: 'Data berhasil diperbarui.',
+                                        timer: 2000,
+                                        showConfirmButton: false
+                                    });
                                 } else {
                                     throw obj.body;
                                 }
                             })
                             .catch(error => {
                                 let errorMsg = 'Gagal memperbarui data.';
-                                if (error && error.errors) { errorMsg = Object.values(error.errors).map(e => e[0]).join('<br>'); }
-                                Swal.fire({ icon: 'error', title: 'Oops...', html: errorMsg });
+                                if (error && error.errors) { 
+                                    errorMsg = Object.values(error.errors).map(e => e[0]).join('<br>'); 
+                                }
+                                Swal.fire({ 
+                                    icon: 'error', 
+                                    title: 'Oops...', 
+                                    html: errorMsg,
+                                    confirmButtonColor: '#dc2626'
+                                });
                             });
 
                         } else if (result.isDenied) { // Jika klik "Hapus"
@@ -388,18 +647,38 @@
 
                 /**
                  * FUNGSI BANTUAN: Memperbarui konten popup setelah diedit.
-                 * (Pastikan Anda juga punya fungsi ini dari revisi sebelumnya)
                  */
                 function updatePopupContent(layer, type, data) {
-                    const popupContent = `
-                        <div style="min-width: 150px;">
-                            <strong style="font-size: 1.1em;">${data.name}</strong><br>
-                            <p style="margin: 5px 0;">${data.description || '<em>Tidak ada deskripsi</em>'}</p>
-                            <hr style="margin: 8px 0;">
-                            <button class="popup-edit-btn" data-type="${type}" data-id="${data.id}" style="width:100%; background-color:#3b82f6; color:white; border:none; padding:5px; border-radius:4px; cursor:pointer;">Edit / Hapus</button>
-                        </div>
-                    `;
-                    layer.bindPopup(popupContent).openPopup(); // Langsung buka popup setelah update
+                    let popupContent = `<div style="min-width: 150px;">
+                        <strong style="font-size: 1.1em;">${data.name}</strong><br>`;
+                    
+                    // Jika polyline, tampilkan panjang dengan format sederhana seperti di gambar
+                    if (type === 'polyline') {
+                        const length = calculatePolylineLength(layer);
+                        popupContent += `<div style="margin: 8px 0; color: #666; font-size: 0.9em;">
+                            <i class="fa fa-arrow-left" style="margin-right: 6px; color: #888;"></i>${length}
+                        </div>`;
+                    }
+                    
+                    popupContent += `<p style="margin: 5px 0;">${data.description || '<em>Tidak ada deskripsi</em>'}</p>
+                        <hr style="margin: 8px 0;">
+                        <button class="popup-edit-btn" data-type="${type}" data-id="${data.id}" style="width:100%; background-color:#3b82f6; color:white; border:none; padding:8px; border-radius:4px; cursor:pointer; transition: all 0.2s;">
+                            <i class="fa fa-edit" style="margin-right: 5px;"></i>Edit / Hapus
+                        </button>
+                    </div>`;
+                    
+                    layer.bindPopup(popupContent);
+                }
+
+                // Fungsi terpisah untuk menambahkan tooltip panjang pada polyline
+                function addLengthTooltipToPolyline(polyline) {
+                    const length = calculatePolylineLength(polyline);
+                    polyline.bindTooltip(length, {
+                        permanent: true,
+                        direction: 'center',
+                        className: 'polyline-length-tooltip',
+                        offset: [0, 0]
+                    });
                 }
 
                 /**
@@ -466,6 +745,8 @@
                         if(sidebarLayerGroups['Kabel']) {
                             sidebarLayerGroups['Kabel'].addLayer(polyline);
                         }
+
+                        // HAPUS: Tooltip panjang kabel yang permanen di peta
                     } catch (e) { console.error('Gagal parsing path polyline ID:', line.id, e); }
                 }
 
@@ -502,17 +783,22 @@
                 // ===================================================================
 
                 // Hanya tampilkan kontrol gambar jika user memiliki izin
-                if (permissions.canCreate) {
+                if (permissions.canCreate || permissions.canEdit || permissions.canDelete) {
                     const drawControl = new L.Control.Draw({
-                        edit: { featureGroup: drawnItems },
-                        draw: { 
+                        // Opsi Edit diaktifkan dan terhubung dengan layer yang ada di peta
+                        edit: { 
+                            featureGroup: drawnItems,
+                            remove: permissions.canDelete // Hanya tampilkan tombol hapus jika diizinkan
+                        },
+                        // Opsi Draw (gambar baru)
+                        draw: permissions.canCreate ? { 
                             polygon: false, 
                             circle: false, 
                             rectangle: false, 
                             circlemarker: false, 
                             marker: true, 
                             polyline: true 
-                        }
+                        } : false // Sembunyikan semua tombol draw jika tidak diizinkan
                     });
                     map.addControl(drawControl);
                 }
@@ -530,44 +816,67 @@
                         let groupOptions = allLayerGroups.map(g => `<option value="${g.id}">${g.name}</option>`).join('');
                         let locationOptions = allLocations.map(loc => `<option value="${loc.id}">${loc.name}</option>`).join('');
 
+                        const fields = [
+                            {
+                                id: 'swal-name',
+                                label: 'Nama Titik',
+                                type: 'text',
+                                required: true,
+                                placeholder: 'Contoh: ODP-01'
+                            },
+                            {
+                                id: 'swal-group',
+                                label: 'Grup Layer',
+                                type: 'select',
+                                required: true,
+                                placeholder: 'Pilih Grup Layer...',
+                                options: groupOptions
+                            },
+                            {
+                                id: 'swal-location',
+                                label: 'Lokasi',
+                                type: 'select',
+                                placeholder: 'Pilih Lokasi...',
+                                options: locationOptions
+                            },
+                            {
+                                id: 'swal-description',
+                                label: 'Deskripsi',
+                                type: 'textarea',
+                                placeholder: 'Deskripsi detail (opsional)'
+                            }
+                        ];
+
                         Swal.fire({
                             title: 'Tambah Titik Baru',
-                            html: `
-                                <div style="text-align: left; padding: 1em;">
-                                    <label for="swal-name">Nama Titik:</label>
-                                    <input id="swal-name" class="swal2-input" placeholder="cth: ODP-01">
-                                    
-                                    <label for="swal-group">Grup Layer:</label>
-                                    <select id="swal-group" class="swal2-select">${groupOptions}</select>
-                                        const selectedOption = this.options[this.selectedIndex];
-                                            document.getElementById('swal-color').value = selectedOption.getAttribute('data-color');
-                                        ">
-                                            <option value="">Pilih Grup...</option>
-                                                ${groupOptions}
-                                            </select>
-                                    <label for="swal-location">Lokasi:</label>
-                                    <select id="swal-location" class="swal2-select">${locationOptions}</select>
-                                    
-                                    <label for="swal-color">Warna Ikon:</label>
-                                    <input type="color" id="swal-color" class="swal2-input" value="#3b82f6" style="padding: 5px; height: 40px;">
-
-                                    <label for="swal-description">Deskripsi:</label>
-                                    <textarea id="swal-description" class="swal2-textarea" placeholder="(Opsional)"></textarea>
-                                </div>`,
+                            html: createFormHTML(fields),
+                            confirmButtonText: '<i class="fa fa-save"></i> Simpan',
+                            cancelButtonText: '<i class="fa fa-times"></i> Batal',
+                            confirmButtonColor: '#3b82f6',
+                            cancelButtonColor: '#6b7280',
+                            width: '400px',
+                            showCancelButton: true,
                             focusConfirm: false,
+                            customClass: {
+                                container: 'swal-custom-container'
+                            },
                             preConfirm: () => {
-                                const name = document.getElementById('swal-name').value;
+                                const name = document.getElementById('swal-name').value.trim();
+                                const groupId = document.getElementById('swal-group').value;
                                 if (!name) {
                                     Swal.showValidationMessage(`Nama Titik wajib diisi`);
                                     return false;
                                 }
+                                if (!groupId) {
+                                    Swal.showValidationMessage(`Grup Layer wajib dipilih`);
+                                    return false;
+                                }
                                 return {
                                     name: name,
-                                    layer_group_id: document.getElementById('swal-group').value,
+                                    layer_group_id: groupId,
                                     location_id: document.getElementById('swal-location').value,
-                                    description: document.getElementById('swal-description').value,
+                                    description: document.getElementById('swal-description').value.trim(),
                                     coordinates: coords
-                                    // 'color' akan diambil dari grup layer di backend atau saat render
                                 };
                             }
                         }).then((result) => {
@@ -593,38 +902,72 @@
                                         buildSidebar();
                                         
                                         // 3. Tampilkan notifikasi
-                                        Swal.fire('Sukses!', 'Titik berhasil disimpan.', 'success');
+                                        Swal.fire({
+                                            icon: 'success',
+                                            title: 'Sukses!',
+                                            text: 'Titik berhasil disimpan.',
+                                            timer: 2000,
+                                            showConfirmButton: false
+                                        });
                                     } else { throw obj.body; }
                                 })
                                 .catch(error => {
                                     let errorMsg = 'Terjadi kesalahan pada server.';
-                                    if (error && error.errors) { errorMsg = Object.values(error.errors).map(e => e[0]).join('<br>'); }
-                                    Swal.fire({ icon: 'error', title: 'Gagal Menyimpan', html: errorMsg });
+                                    if (error && error.errors) { 
+                                        errorMsg = Object.values(error.errors).map(e => e[0]).join('<br>'); 
+                                    }
+                                    Swal.fire({ 
+                                        icon: 'error', 
+                                        title: 'Gagal Menyimpan', 
+                                        html: errorMsg,
+                                        confirmButtonColor: '#dc2626'
+                                    });
                                 });
                             }
-                            document.getElementById('swal-group').dispatchEvent(new Event('change'));
                         });
                     }
 
                     // --- LOGIKA UNTUK MENAMBAH GARIS BARU ---
                     if (type === 'polyline') {
                         const path = JSON.stringify(layer.getLatLngs());
+                        
+                        const fields = [
+                            {
+                                id: 'swal-name',
+                                label: 'Nama Kabel',
+                                type: 'text',
+                                required: true,
+                                placeholder: 'Contoh: Kabel Feeder Utama'
+                            },
+                            {
+                                id: 'swal-color',
+                                label: 'Warna Kabel',
+                                type: 'color-dropdown',
+                                value: '#e83e58'
+                            },
+                            {
+                                id: 'swal-description',
+                                label: 'Deskripsi',
+                                type: 'textarea',
+                                placeholder: 'Deskripsi detail (opsional)'
+                            }
+                        ];
+
                         Swal.fire({
                             title: 'Tambah Kabel Baru',
-                            html: `
-                                <div style="text-align: left; padding: 1em;">
-                                    <label for="swal-name">Nama Kabel:</label>
-                                    <input id="swal-name" class="swal2-input" placeholder="cth: Kabel Feeder Utama">
-                                    
-                                    <label for="swal-color">Warna:</label>
-                                    <input type="color" id="swal-color" class="swal2-input" value="#e83e58" style="padding: 5px; height: 40px;">
-
-                                    <label for="swal-description">Deskripsi:</label>
-                                    <textarea id="swal-description" class="swal2-textarea" placeholder="(Opsional)"></textarea>
-                                </div>`,
+                            html: createFormHTML(fields),
+                            confirmButtonText: '<i class="fa fa-save"></i> Simpan',
+                            cancelButtonText: '<i class="fa fa-times"></i> Batal',
+                            confirmButtonColor: '#3b82f6',
+                            cancelButtonColor: '#6b7280',
+                            width: '400px',
+                            showCancelButton: true,
                             focusConfirm: false,
+                            customClass: {
+                                container: 'swal-custom-container'
+                            },
                             preConfirm: () => {
-                                const name = document.getElementById('swal-name').value;
+                                const name = document.getElementById('swal-name').value.trim();
                                 if (!name) {
                                     Swal.showValidationMessage(`Nama Kabel wajib diisi`);
                                     return false;
@@ -632,7 +975,7 @@
                                 return {
                                     name: name,
                                     color: document.getElementById('swal-color').value,
-                                    description: document.getElementById('swal-description').value,
+                                    description: document.getElementById('swal-description').value.trim(),
                                     path: path
                                 };
                             }
@@ -652,64 +995,35 @@
                                         allPolylines.push(newLine);
                                         addPolylineToMap(newLine);
                                         
+                                        // Tambahkan tooltip panjang kabel
+                                        addLengthTooltipToPolyline(newLine);
+                                        
                                         // 2. Bangun ulang sidebar
                                         buildSidebar();
                                         
                                         // 3. Tampilkan notifikasi
-                                        Swal.fire('Sukses!', 'Kabel berhasil disimpan.', 'success');
+                                        Swal.fire({
+                                            icon: 'success',
+                                            title: 'Sukses!',
+                                            text: 'Kabel berhasil disimpan.',
+                                            timer: 2000,
+                                            showConfirmButton: false
+                                        });
                                     } else { throw obj.body; }
                                 })
                                 .catch(error => {
-                                    // (Error handling serupa dengan di atas)
-                                    Swal.fire({ icon: 'error', title: 'Gagal Menyimpan', text: 'Terjadi kesalahan pada server.' });
+                                    Swal.fire({ 
+                                        icon: 'error', 
+                                        title: 'Gagal Menyimpan', 
+                                        text: 'Terjadi kesalahan pada server.',
+                                        confirmButtonColor: '#dc2626'
+                                    });
                                 });
                             }
                         });
                     }
                 });
 
-                /**
-                 * EVENT HANDLER: Dipicu saat popup terbuka untuk mengaktifkan tombol di dalamnya.
-                 */
-                map.on('popupopen', function (e) {
-                    const popupNode = e.popup.getElement();
-                    if (!popupNode) return;
-                    
-                    const editBtn = popupNode.querySelector('.popup-edit-btn');
-                    if (editBtn) {
-                        // Hapus event listener lama untuk mencegah duplikasi
-                        editBtn.onclick = null; 
-                        editBtn.onclick = function() {
-                            // Panggil fungsi edit yang sudah kita revisi
-                            openEditPopup(this.dataset.type, parseInt(this.dataset.id));
-                        }
-                    }
-                });
-                
-                // ===================================================================
-                // BAGIAN KONTROL PETA & EVENT HANDLERS
-                // ===================================================================
-
-                // Hanya tampilkan kontrol gambar jika user memiliki izin
-                if (permissions.canCreate || permissions.canEdit || permissions.canDelete) {
-                    const drawControl = new L.Control.Draw({
-                        // Opsi Edit diaktifkan dan terhubung dengan layer yang ada di peta
-                        edit: { 
-                            featureGroup: drawnItems,
-                            remove: permissions.canDelete // Hanya tampilkan tombol hapus jika diizinkan
-                        },
-                        // Opsi Draw (gambar baru)
-                        draw: permissions.canCreate ? { 
-                            polygon: false, 
-                            circle: false, 
-                            rectangle: false, 
-                            circlemarker: false, 
-                            marker: true, 
-                            polyline: true 
-                        } : false // Sembunyikan semua tombol draw jika tidak diizinkan
-                    });
-                    map.addControl(drawControl);
-                }
                 /**
                  * REVISI: EVENT HANDLER: Dipicu setelah selesai MENGEDIT GEOMETRI (memindahkan/mengubah bentuk).
                  */
@@ -818,6 +1132,22 @@
                     }
                 });
             }); // Penutup untuk DOMContentLoaded
+        </script>
+
+        <script>
+        // Hide sidebar dynamically on mobile devices
+        function hideSidebarOnMobile() {
+            const sidebar = document.getElementById('sidebar');
+            if (window.innerWidth <= 768) {
+                sidebar.style.display = 'none';
+            } else {
+                sidebar.style.display = 'block';
+            }
+        }
+
+        // Run on page load and window resize
+        window.addEventListener('load', hideSidebarOnMobile);
+        window.addEventListener('resize', hideSidebarOnMobile);
         </script>
     @endpush
 </x-app-layout>

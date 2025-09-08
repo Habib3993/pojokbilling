@@ -39,6 +39,9 @@
                             </tr>
                         </thead>
                             <tbody class="bg-white divide-y divide-gray-200 dark:bg-gray-800">
+                                @php
+                                    $customers = $customers->sortByDesc('subscription_date');
+                                @endphp
                                 @forelse ($customers as $customer)
                                     <tr>
                                         <td class="px-6 py-2 whitespace-nowrap text-xs">{{ $customer->name }}</td>

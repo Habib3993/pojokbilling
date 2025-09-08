@@ -46,8 +46,13 @@ class LayerGroupController extends Controller
             abort(403, 'ANDA TIDAK MEMILIKI HAK AKSES.');
         }
 
-        $request->validate(['name' => 'required|string|unique:layer_groups,name']);
-        LayerGroup::create($request->all());
+        $validated = $request->validate([
+            'name' => 'required|string|max:255|unique:layer_groups,name',
+            'color' => 'required|string|max:7',
+            'icon' => 'required|string|max:100'
+        ]);
+        
+        LayerGroup::create($validated);
         return redirect()->route('layer-groups.index')->with('success', 'Grup Layer berhasil dibuat.');
     }
 
@@ -80,8 +85,13 @@ class LayerGroupController extends Controller
             abort(403, 'ANDA TIDAK MEMILIKI HAK AKSES.');
         }
 
-        $request->validate(['name' => 'required|string|unique:layer_groups,name,' . $layerGroup->id]);
-        $layerGroup->update($request->all());
+        $validated = $request->validate([
+            'name' => 'required|string|max:255|unique:layer_groups,name,' . $layerGroup->id,
+            'color' => 'required|string|max:7',
+            'icon' => 'required|string|max:100'
+        ]);
+        
+        $layerGroup->update($validated);
         return redirect()->route('layer-groups.index')->with('success', 'Grup Layer berhasil diperbarui.');
     }
 

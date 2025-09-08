@@ -25,24 +25,28 @@
     <script>
     const map = L.map('map').setView([-7.5489, 112.4480], 13);
 
-    // Definisi berbagai tile layers
+    // Definisi berbagai tile layers dengan maxZoom tinggi
     const baseLayers = {
-        "Satellite": L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-            maxZoom: 19,
+        "Satellite HD": L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+            maxZoom: 22,
+            attribution: '© Google Satellite'
+        }),
+        "Satellite (Esri)": L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            maxZoom: 20,
             attribution: '© Esri'
         }),
         "OpenStreetMap": L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,
             attribution: '© OpenStreetMap'
         }),
-        "Hybrid": L.layerGroup([
-            L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-                maxZoom: 19,
-                attribution: '© Esri'
+        "Hybrid (Google)": L.layerGroup([
+            L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+                maxZoom: 22,
+                attribution: '© Google'
             }),
-            L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
-                maxZoom: 19,
-                attribution: '© Esri'
+            L.tileLayer('https://mt1.google.com/vt/lyrs=h&x={x}&y={y}&z={z}', {
+                maxZoom: 22,
+                attribution: '© Google'
             })
         ]),
         "Terrain": L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
@@ -51,8 +55,8 @@
         })
     };
 
-    // Set satellite sebagai layer default
-    baseLayers["Satellite"].addTo(map);
+    // Set Google Satellite HD sebagai layer default
+    baseLayers["Satellite HD"].addTo(map);
 
     // Tambahkan layer control untuk switch antar layer
     L.control.layers(baseLayers).addTo(map);

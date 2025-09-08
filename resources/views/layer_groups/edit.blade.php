@@ -27,7 +27,34 @@
 
                             <div>
                                 <x-input-label for="color" :value="__('Warna Grup')" />
-                                <x-text-input id="color" name="color" type="color" class="mt-1 block w-full h-10" :value="old('color', $layerGroup->color ?? '#3b82f6')" />
+                                <div class="mt-1 flex items-center gap-3">
+                                    <div id="color-preview" class="w-12 h-8 rounded border-2 border-gray-300" style="background-color: {{ old('color', $layerGroup->color ?? '#3b82f6') }}"></div>
+                                    <div class="relative">
+                                        <button type="button" id="color-picker-btn" class="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                                            <i class="fa fa-palette mr-2"></i>
+                                            Pilih Warna
+                                        </button>
+                                        <div id="color-dropdown" class="hidden absolute z-50 mt-1 w-64 bg-white rounded-md shadow-lg border border-gray-200 p-3">
+                                            <div class="grid grid-cols-8 gap-1">
+                                                @php
+                                                $colors = [
+                                                    '#000000', '#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#FF00FF', '#00FFFF', '#C0C0C0',
+                                                    '#808080', '#800000', '#008000', '#000080', '#808000', '#800080', '#008080', '#FFFFFF',
+                                                    '#FFA500', '#A52A2A', '#DDA0DD', '#98FB98', '#F0E68C', '#87CEEB', '#D2691E', '#FF69B4',
+                                                    '#CD853F', '#4682B4', '#32CD32', '#FFB6C1', '#40E0D0', '#EE82EE', '#90EE90', '#FF6347'
+                                                ];
+                                                @endphp
+                                                
+                                                @foreach($colors as $color)
+                                                <button type="button" class="color-option w-6 h-6 rounded border border-gray-300 hover:border-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                                                        style="background-color: {{ $color }}"
+                                                        data-color="{{ $color }}"></button>
+                                                @endforeach
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <input type="hidden" name="color" id="color-input" value="{{ old('color', $layerGroup->color ?? '#3b82f6') }}">
                                 <x-input-error :messages="$errors->get('color')" class="mt-2" />
                             </div>
 
@@ -97,6 +124,34 @@
                 iconDisplayElement.className = iconClass + ' fa-2x text-gray-700 dark:text-gray-200';
                 Swal.close();
             }
+
+            // Color picker dropdown
+            const colorPickerButton = document.getElementById('color-picker-btn');
+            const colorDropdown = document.getElementById('color-dropdown');
+            const colorInput = document.getElementById('color-input');
+            const colorPreview = document.getElementById('color-preview');
+
+            if (colorPickerButton) {
+                colorPickerButton.addEventListener('click', function() {
+                    colorDropdown.classList.toggle('hidden');
+                });
+            }
+
+            document.querySelectorAll('.color-option').forEach(button => {
+                button.addEventListener('click', function() {
+                    const selectedColor = this.getAttribute('data-color');
+                    colorInput.value = selectedColor;
+                    colorPreview.style.backgroundColor = selectedColor;
+                    colorDropdown.classList.add('hidden');
+                });
+            });
+
+            // Close the dropdown if clicked outside
+            document.addEventListener('click', function(event) {
+                if (!colorPickerButton.contains(event.target) && !colorDropdown.contains(event.target)) {
+                    colorDropdown.classList.add('hidden');
+                }
+            });
         </script>
     @endpush
 </x-app-layout>
